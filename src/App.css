@@ -1,0 +1,308 @@
+/* ═══════════════════════════════════════════════════════════
+   Lume — App Shell
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Layout ──────────────────────────────────────────────── */
+
+.app-shell {
+  display: grid;
+  grid-template-rows: 52px 1fr auto;
+  min-height: 100vh;
+  background: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1.18fr 1fr;
+  gap: 12px;
+  padding: 0 14px 0;
+  overflow: hidden;
+}
+
+.bottom-strip {
+  display: grid;
+  grid-template-columns: 1.18fr 1fr;
+  gap: 12px;
+  padding: 12px 14px 14px;
+}
+
+/* ── Top bar ─────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-icon {
+  font-size: 18px;
+  color: #818cf8;
+}
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: -.01em;
+}
+
+.brand-tag {
+  font-size: 11px;
+  color: #64748b;
+  background: #1e293b;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 500;
+}
+
+.topbar-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.meta-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #1e293b;
+  border-radius: 99px;
+  padding: 3px 10px;
+}
+
+.mood-chip {
+  color: #a5f3fc;
+  background: #083344;
+}
+
+/* ── Panes ───────────────────────────────────────────────── */
+
+.pane {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, .06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.pane-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.pane-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.pane-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 2px 0 0;
+}
+
+.pane-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.pane-canvas {
+  min-height: 0;
+}
+
+.pane-right {
+  min-height: 0;
+}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+
+.tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tab-row {
+  display: flex;
+  gap: 2px;
+}
+
+.tab-btn {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.tab-btn.active {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ── Code area ───────────────────────────────────────────── */
+
+.code-area {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  resize: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Menlo, monospace;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+}
+
+.code-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ── Action buttons ──────────────────────────────────────── */
+
+.action-btn {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: #0f172a;
+  color: #f8fafc;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  background: #1e293b;
+}
+
+.action-btn:active {
+  transform: scale(.97);
+}
+
+.action-btn.ghost {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+.action-btn.ghost:hover {
+  background: #e2e8f0;
+}
+
+/* ── Bottom panels ───────────────────────────────────────── */
+
+.bottom-pane {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 12px 14px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, .06);
+}
+
+.bottom-pane .pane-hint {
+  margin-bottom: 8px;
+}
+
+/* ── Copilot ─────────────────────────────────────────────── */
+
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: #818cf8;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.chip.chip-active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+}
+
+.copilot-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.copilot-input {
+  flex: 1;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #111827;
+  background: #f8fafc;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.copilot-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+  background: #fff;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 1050px) {
+  .workspace,
+  .bottom-strip {
+    grid-template-columns: 1fr;
+  }
+}
