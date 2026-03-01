@@ -85,6 +85,57 @@
   background: #083344;
 }
 
+.memory-chip {
+  color: #fcd34d;
+  background: #1c1a0d;
+  cursor: default;
+}
+
+/* ── Copilot pane header with taste hint ─────────────── */
+
+.copilot-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.taste-hint {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 99px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.taste-hint strong {
+  color: #334155;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.taste-hint-clear {
+  font-size: 11px;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: color .12s;
+}
+
+.taste-hint-clear:hover {
+  color: #ef4444;
+}
+
 /* ── Panes ───────────────────────────────────────────────── */
 
 .pane {
@@ -243,21 +294,21 @@
 .preset-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 10px;
 }
 
 .chip {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   font-family: inherit;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 99px;
   border: 1.5px solid #e2e8f0;
   background: #f8fafc;
   color: #475569;
   cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s;
+  transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
   white-space: nowrap;
 }
 
@@ -305,4 +356,143 @@
   .bottom-strip {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Code pane sub-tabs ──────────────────────────────────── */
+
+.code-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.code-subtab-row {
+  display: flex;
+  gap: 2px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.code-subtab-btn {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  font-family: inherit;
+}
+
+.code-subtab-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .1);
+}
+
+/* ── Export file-tree preview ────────────────────────────── */
+
+.code-pane-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 8px;
+}
+
+.code-pane-body .code-area {
+  flex: 1;
+  min-height: 0;
+  height: 0; /* allows flex to shrink */
+}
+
+.export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.export-file-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.export-file-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.export-file-name {
+  font-weight: 700;
+  color: #1e293b;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Menlo, monospace;
+  flex: 1;
+}
+
+.export-file-lines {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+  background: #e2e8f0;
+  border-radius: 99px;
+  padding: 1px 7px;
+}
+
+.export-file-btn {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 2px 9px;
+  border-radius: 6px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  white-space: nowrap;
+}
+
+.export-file-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* ── Copilot change summary ──────────────────────────────── */
+
+.copilot-summary {
+  margin-top: 8px;
+  padding: 7px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.5;
+  animation: fadeIn .25s ease;
+}
+
+.copilot-summary-icon {
+  color: #16a34a;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

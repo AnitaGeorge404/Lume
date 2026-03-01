@@ -26,17 +26,14 @@
   font-family: inherit;
   border: none;
   outline: none;
-  transition: transform .12s, box-shadow .12s;
+  /* Transitions are set inline, driven by the semantic animation profile */
 }
+
+/* Hover lift for buttons is handled inline via JS state for precise control */
 
 .pw-button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-}
-
-.pw-button:active {
-  transform: translateY(0);
-  filter: brightness(.94);
+  filter: brightness(1.07);
+  transform: translateY(-2px);
 }
 
 .click-badge {
@@ -52,7 +49,14 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 6px;
+  transition: box-shadow .22s cubic-bezier(0.4, 0, 0.2, 1),
+              transform   .22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pw-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .14) !important;
 }
 
 .card-title {
@@ -91,12 +95,20 @@
   font-weight: 700;
 }
 
+/* ─── Slider track with dynamic fill via CSS custom properties ──────────── */
 .slider-track {
   width: 100%;
-  height: 4px;
+  height: 5px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(0, 0, 0, .12);
+  /* Filled portion via gradient: --fill-pct is set inline per slider value */
+  background: linear-gradient(
+    to right,
+    var(--accent, #6366f1) 0%,
+    var(--accent, #6366f1) var(--fill-pct, 50%),
+    rgba(0, 0, 0, .15) var(--fill-pct, 50%),
+    rgba(0, 0, 0, .15) 100%
+  );
   border-radius: 99px;
   outline: none;
 }
@@ -126,12 +138,7 @@
 .pw-input {
   font-family: inherit;
   outline: none;
-  transition: border-color .15s, box-shadow .15s;
-}
-
-.pw-input:focus {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, .2);
-  border-color: #6366f1 !important;
+  /* Focus ring is managed inline via React state for per-component accent color */
 }
 
 .pw-badge {
@@ -140,6 +147,16 @@
 
 .pw-divider {
   pointer-events: none;
+}
+
+/* ─── Component position transition frame ──────────────────── */
+
+.preview-frame {
+  transition:
+    left   .28s cubic-bezier(0.4, 0, 0.2, 1),
+    top    .28s cubic-bezier(0.4, 0, 0.2, 1),
+    width  .28s cubic-bezier(0.4, 0, 0.2, 1),
+    height .28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ─── Empty state ──────────────────────────────────────────── */
@@ -151,24 +168,27 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   pointer-events: none;
+  user-select: none;
 }
 
 .preview-empty-icon {
-  font-size: 32px;
-  opacity: .5;
+  font-size: 36px;
+  opacity: .4;
+  margin-bottom: 4px;
 }
 
-.preview-empty p {
+.preview-empty-title {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: #64748b;
 }
 
 .preview-empty-sub {
-  font-size: 12px !important;
-  font-weight: 400 !important;
-  color: #94a3b8 !important;
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 400;
 }

@@ -1,12 +1,16 @@
+import { interpretIntent, loadMemory, saveToMemory } from './intentEngine'
+
 export const PRESETS = [
-  { label: '✨ Default',  prompt: '' },
-  { label: '⬛ Minimal',  prompt: 'minimal' },
-  { label: '🎉 Playful',  prompt: 'playful' },
-  { label: '💖 Romantic', prompt: 'soft colors romantic vibe' },
-  { label: '🌙 Dark',     prompt: 'dark mode' },
-  { label: '⚡ Neon',     prompt: 'neon cyberpunk' },
-  { label: '🏢 Corporate',prompt: 'corporate professional' },
-  { label: '🌅 Warm',     prompt: 'warm earthy colors' },
+  { label: '✨ Default',   prompt: '' },
+  { label: '⬛ Minimal',   prompt: 'minimal' },
+  { label: '🎉 Playful',   prompt: 'playful' },
+  { label: '💖 Soft',      prompt: 'soft colors romantic' },
+  { label: '🌙 Dark',      prompt: 'dark mode' },
+  { label: '⚡ Neon',      prompt: 'neon glow' },
+  { label: '💎 Premium',   prompt: 'premium sophisticated' },
+  { label: '🏢 Corporate', prompt: 'corporate professional' },
+  { label: '🌅 Warm',      prompt: 'warm earthy' },
+  { label: '⚡ Electric',  prompt: 'electric spotify dark' },
 ]
 
 const PROFILES = {
@@ -162,19 +166,61 @@ const PROFILES = {
       Divider: { fill: 'transparent', text: '#d97706', border: '#fde68a' },
     },
   },
+
+  // ── Two new profiles added in v2 ─────────────────────────────────────────
+
+  premium: {
+    mood: 'premium',
+    surface:   '#0d0f14',
+    text:      '#e8e4d8',
+    accent:    '#c9a96e',
+    bg:        '#0d0f14',
+    radius:    6,
+    shadow:    true,
+    fontStyle: 'normal',
+    sliderDecoration: 'none',
+    perType: {
+      Button:  { fill: '#c9a96e', text: '#0d0f14', border: '#9e7a42' },
+      Card:    { fill: '#161920', text: '#e8e4d8', border: '#2a2d36' },
+      Slider:  { fill: '#161920', text: '#c9a96e', border: '#c9a96e' },
+      Input:   { fill: '#161920', text: '#e8e4d8', border: '#2a2d36' },
+      Badge:   { fill: '#22201a', text: '#c9a96e', border: '#9e7a42' },
+      Divider: { fill: 'transparent', text: '#3a3628', border: '#2a2d36' },
+    },
+  },
+
+  electric: {
+    mood: 'electric',
+    surface:   '#0a0a0a',
+    text:      '#f0f0f0',
+    accent:    '#1db954',
+    bg:        '#0a0a0a',
+    radius:    8,
+    shadow:    true,
+    fontStyle: 'normal',
+    sliderDecoration: 'none',
+    perType: {
+      Button:  { fill: '#1db954', text: '#000000', border: '#17a347' },
+      Card:    { fill: '#121212', text: '#f0f0f0', border: '#282828' },
+      Slider:  { fill: '#121212', text: '#1db954', border: '#1db954' },
+      Input:   { fill: '#121212', text: '#f0f0f0', border: '#282828' },
+      Badge:   { fill: '#1a3a27', text: '#1db954', border: '#1db954' },
+      Divider: { fill: 'transparent', text: '#282828', border: '#282828' },
+    },
+  },
 }
 
+// ─── Profile resolution via intent engine ─────────────────────────────────────
+
 function pickProfile(prompt) {
-  const p = prompt.toLowerCase()
-  if (!p) return PROFILES.default
-  if (p.includes('minimal') || p.includes('clean') || p.includes('simple')) return PROFILES.minimal
-  if (p.includes('playful') || p.includes('fun') || p.includes('colorful'))  return PROFILES.playful
-  if (p.includes('romantic') || p.includes('soft') || p.includes('heart') || p.includes('love')) return PROFILES.soft
-  if (p.includes('dark') || p.includes('night') || p.includes('black'))      return PROFILES.dark
-  if (p.includes('neon') || p.includes('cyber') || p.includes('glow'))       return PROFILES.neon
-  if (p.includes('corporate') || p.includes('professional') || p.includes('business')) return PROFILES.corporate
-  if (p.includes('warm') || p.includes('earthy') || p.includes('cozy'))      return PROFILES.warm
-  return PROFILES.default
+  if (!prompt.trim()) return PROFILES.default
+
+  const memory = loadMemory()
+  const { profileKey } = interpretIntent(prompt, memory)
+
+  // Map intent engine profile key → our PROFILES keys
+  // The intent engine can return 'electric' and 'premium' which exist now
+  return PROFILES[profileKey] ?? PROFILES.default
 }
 
 function applyProfile(component, profile) {
@@ -199,10 +245,42 @@ function applyProfile(component, profile) {
   return { ...component, style: base, props }
 }
 
+function buildChangeSummary(components, profile, intentReasoning) {
+  if (!components.length) return null
+  const mood = profile.mood
+  if (mood === 'default') return null
+
+  const typeCounts = {}
+  components.forEach(c => { typeCounts[c.type] = (typeCounts[c.type] ?? 0) + 1 })
+  const typeList = Object.entries(typeCounts)
+    .map(([t, n]) => `${n} ${t}${n > 1 ? 's' : ''}`)
+    .join(', ')
+
+  const radiusNote = profile.radius <= 6 ? 'sharp corners' : profile.radius >= 18 ? 'rounded corners' : null
+  const shadowNote = profile.shadow ? 'shadows on' : 'shadows off'
+  const extras = [radiusNote, shadowNote].filter(Boolean).join(', ')
+
+  // Use the intent engine's reasoning if available (more natural language)
+  const prefix = intentReasoning ?? `Applied "${mood}"`
+
+  return `${prefix} · restyled ${typeList}${extras ? ` · ${extras}` : ''}`
+}
+
 export function refineComponentsWithPrompt(components, prompt) {
   const profile = pickProfile(prompt.trim())
-  return {
-    components: components.map((c) => applyProfile(c, profile)),
-    profile,
+
+  // Get intent reasoning for the change summary
+  let intentReasoning = null
+  if (prompt.trim()) {
+    const memory = loadMemory()
+    const intent = interpretIntent(prompt.trim(), memory)
+    intentReasoning = intent.reasoning
+    // Persist this preference to memory
+    saveToMemory(profile.mood, prompt.trim())
   }
+
+  const refined = components.map((c) => applyProfile(c, profile))
+  const changeSummary = buildChangeSummary(components, profile, intentReasoning)
+
+  return { components: refined, profile, changeSummary }
 }

@@ -1,24 +1,8 @@
+import { COMPONENT_TYPES, TYPE_ACCENT, TYPE_EMOJI } from '../lib/componentModel'
 import './ComponentList.css'
 
-const TYPES = ['Button', 'Card', 'Slider', 'Input', 'Badge', 'Divider']
-
-const TYPE_EMOJI = {
-  Button: '🔲',
-  Card:   '🃏',
-  Slider: '🎚️',
-  Input:  '✏️',
-  Badge:  '🏷️',
-  Divider:'➖',
-}
-
-const TYPE_COLOR = {
-  Button:  '#6366f1',
-  Card:    '#0ea5e9',
-  Slider:  '#10b981',
-  Input:   '#f59e0b',
-  Badge:   '#8b5cf6',
-  Divider: '#94a3b8',
-}
+const TYPES = COMPONENT_TYPES
+const TYPE_COLOR = TYPE_ACCENT
 
 export function ComponentList({ components, overrides, onOverride }) {
   if (components.length === 0) {
