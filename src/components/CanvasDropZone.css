@@ -1,0 +1,31 @@
+/* ── Canvas Drop Zone ────────────────────────────────────────────────────── */
+
+.canvas-drop-zone {
+  position: relative;
+  line-height: 0; /* prevents phantom gap below canvas */
+}
+
+.drop-zone-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(99, 102, 241, 0.08);
+  border: 2px dashed rgba(99, 102, 241, 0.55);
+  border-radius: 12px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.drop-zone-hint {
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}

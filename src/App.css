@@ -1,41 +1,158 @@
 /* ═══════════════════════════════════════════════════════════
-   Lume — App Shell
+   Lume — Global App Shell & Shared Utilities
    ═══════════════════════════════════════════════════════════ */
 
-/* ── Layout ──────────────────────────────────────────────── */
+/* ── App shell layout ────────────────────────────────────── */
 
 .app-shell {
   display: grid;
-  grid-template-rows: 52px 1fr auto;
-  min-height: 100vh;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+  overflow: hidden;
   background: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: 1.18fr 1fr;
-  gap: 12px;
-  padding: 0 14px 0;
+/* Three-panel main area */
+.main-area {
+  display: flex;
+  flex-direction: row;
   overflow: hidden;
+  min-height: 0;
 }
 
-.bottom-strip {
+/* Canvas center column — stretches to fill remaining space */
+.canvas-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+  background: radial-gradient(circle at top, #f8fbff 0%, #eff3f9 100%);
+  overflow: hidden;
+  position: relative;
+}
+
+.suggestion-panel {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  width: 308px;
+  border: 1px solid #dbe4f0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border-radius: 14px;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+  padding: 10px;
+  z-index: 12;
+}
+
+.suggestion-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.suggestion-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.01em;
+}
+
+.suggestion-sub {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.suggestion-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid #dbe4f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.suggestion-close:hover {
+  border-color: #cbd5e1;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.suggestion-grid {
   display: grid;
-  grid-template-columns: 1.18fr 1fr;
-  gap: 12px;
-  padding: 12px 14px 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-/* ── Top bar ─────────────────────────────────────────────── */
+.suggestion-card {
+  border: 1px solid #dbe4f0;
+  border-radius: 11px;
+  background: #ffffff;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-1px);
+  border-color: #93c5fd;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.12);
+}
+
+.suggestion-card.keep {
+  border-style: dashed;
+}
+
+.suggestion-preview {
+  border: 1px solid #e6edf7;
+  border-radius: 9px;
+  background: #f8fbff;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+}
+
+.sg-card-svg {
+  width: 88px;
+  height: 54px;
+  display: block;
+}
+
+.suggestion-label {
+  font-size: 10px;
+  color: #334155;
+  font-weight: 700;
+}
+
+/* ── Topbar ──────────────────────────────────────────────── */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: #0f172a;
-  border-bottom: 1px solid #1e293b;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-bottom: 1px solid #e5ebf4;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .topbar-brand {
@@ -45,21 +162,22 @@
 }
 
 .brand-icon {
-  font-size: 18px;
-  color: #818cf8;
+  font-size: 17px;
+  color: #2563eb;
 }
 
 .brand-name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
-  color: #f8fafc;
-  letter-spacing: -.01em;
+  color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .brand-tag {
-  font-size: 11px;
-  color: #64748b;
-  background: #1e293b;
+  font-size: 10px;
+  color: #475569;
+  background: #eef2ff;
+  border: 1px solid #dbe4f0;
   border-radius: 6px;
   padding: 2px 8px;
   font-weight: 500;
@@ -71,199 +189,67 @@
   align-items: center;
 }
 
+/* ── Meta chips (topbar) ─────────────────────────────────── */
+
 .meta-chip {
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
-  background: #1e293b;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #dbe4f0;
   border-radius: 99px;
   padding: 3px 10px;
-}
-
-.mood-chip {
-  color: #a5f3fc;
-  background: #083344;
-}
-
-.memory-chip {
-  color: #fcd34d;
-  background: #1c1a0d;
-  cursor: default;
-}
-
-/* ── Copilot pane header with taste hint ─────────────── */
-
-.copilot-pane-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 2px;
-}
-
-.taste-hint {
-  font-size: 11px;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 99px;
-  padding: 2px 8px;
   white-space: nowrap;
 }
 
-.taste-hint strong {
-  color: #334155;
-  font-weight: 700;
-  text-transform: capitalize;
+.mood-chip {
+  color: #155e75;
+  background: #ecfeff;
+  border-color: #bae6fd;
 }
 
-.taste-hint-clear {
-  font-size: 11px;
-  color: #94a3b8;
-  background: none;
-  border: none;
+.memory-chip {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+  cursor: default;
+}
+
+.clear-chip {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
   cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-  border-radius: 3px;
-  transition: color .12s;
+  transition: all 0.13s;
+  font-family: inherit;
 }
 
-.taste-hint-clear:hover {
-  color: #ef4444;
+.clear-chip:hover {
+  background: #fee2e2;
 }
 
-/* ── Panes ───────────────────────────────────────────────── */
-
-.pane {
-  background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, .06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  margin-top: 12px;
-}
-
-.pane-header {
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid #f1f5f9;
-  flex-shrink: 0;
-}
-
-.pane-label {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  color: #334155;
-}
-
-.pane-hint {
-  font-size: 11px;
-  color: #94a3b8;
-  margin: 2px 0 0;
-}
-
-.pane-body {
-  flex: 1;
-  overflow: hidden;
-  padding: 10px;
-}
-
-.pane-canvas {
-  min-height: 0;
-}
-
-.pane-right {
-  min-height: 0;
-}
-
-/* ── Tabs ────────────────────────────────────────────────── */
-
-.tab-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tab-row {
-  display: flex;
-  gap: 2px;
-}
-
-.tab-btn {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  border: none;
-  background: transparent;
-  color: #94a3b8;
-  padding: 5px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-}
-
-.tab-btn.active {
-  background: #f1f5f9;
-  color: #1e293b;
-}
-
-/* ── Code area ───────────────────────────────────────────── */
-
-.code-area {
-  width: 100%;
-  height: 100%;
-  min-height: 380px;
-  resize: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
-  font-size: 12px;
-  line-height: 1.6;
-  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Menlo, monospace;
-  color: #1e293b;
-  background: #f8fafc;
-  outline: none;
-}
-
-.code-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-/* ── Action buttons ──────────────────────────────────────── */
+/* ── Shared action button  ─────────────────────────────────
+   Used by DrawingCanvas toolbar and anywhere else that doesn't
+   have its own scoped button styles.
+   ─────────────────────────────────────────────────────────── */
 
 .action-btn {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   font-family: inherit;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: 8px;
   border: 1.5px solid transparent;
   background: #0f172a;
   color: #f8fafc;
   cursor: pointer;
-  transition: background .15s, transform .1s;
+  transition: background 0.15s, transform 0.1s;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
-.action-btn:hover {
-  background: #1e293b;
-}
-
-.action-btn:active {
-  transform: scale(.97);
-}
+.action-btn:hover  { background: #1e293b; }
+.action-btn:active { transform: scale(0.97); }
 
 .action-btn.ghost {
   background: #f1f5f9;
@@ -271,228 +257,32 @@
   border-color: #e2e8f0;
 }
 
-.action-btn.ghost:hover {
-  background: #e2e8f0;
+.action-btn.ghost:hover { background: #e2e8f0; }
+
+/* ── Canvas drop-zone wrapper fix ────────────────────────── */
+/* Ensure CanvasDropZone doesn't break the canvas centering   */
+.canvas-area .canvas-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ── Bottom panels ───────────────────────────────────────── */
-
-.bottom-pane {
-  background: #ffffff;
+/* ── Canvas pane card ────────────────────────────────────── */
+/* Wrap the Fabric canvas in a card-like surface              */
+.canvas-area .canvas-drop-zone > * {
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  padding: 12px 14px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, .06);
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.13), 0 0 0 1px #dbe4f0;
 }
 
-.bottom-pane .pane-hint {
-  margin-bottom: 8px;
+/* ── Responsive: collapse panels at narrow viewport ─────── */
+
+@media (max-width: 900px) {
+  .left-panel  { display: none; }
+  .right-panel { width: 300px; min-width: 280px; }
+  .suggestion-panel { width: 286px; right: 14px; bottom: 14px; }
 }
 
-/* ── Copilot ─────────────────────────────────────────────── */
-
-.preset-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.chip {
-  font-size: 11px;
-  font-weight: 600;
-  font-family: inherit;
-  padding: 4px 10px;
-  border-radius: 99px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  color: #475569;
-  cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
-  white-space: nowrap;
-}
-
-.chip:hover {
-  border-color: #818cf8;
-  color: #4f46e5;
-  background: #eef2ff;
-}
-
-.chip.chip-active {
-  border-color: #6366f1;
-  background: #eef2ff;
-  color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
-}
-
-.copilot-input-row {
-  display: flex;
-  gap: 6px;
-}
-
-.copilot-input {
-  flex: 1;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  color: #111827;
-  background: #f8fafc;
-  outline: none;
-  transition: border-color .15s, box-shadow .15s;
-}
-
-.copilot-input:focus {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
-  background: #fff;
-}
-
-/* ── Responsive ──────────────────────────────────────────── */
-
-@media (max-width: 1050px) {
-  .workspace,
-  .bottom-strip {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Code pane sub-tabs ──────────────────────────────────── */
-
-.code-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.code-subtab-row {
-  display: flex;
-  gap: 2px;
-  background: #f1f5f9;
-  border-radius: 8px;
-  padding: 2px;
-}
-
-.code-subtab-btn {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  padding: 3px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .12s, color .12s;
-  font-family: inherit;
-}
-
-.code-subtab-btn.active {
-  background: #ffffff;
-  color: #1e293b;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, .1);
-}
-
-/* ── Export file-tree preview ────────────────────────────── */
-
-.code-pane-body {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 8px;
-}
-
-.code-pane-body .code-area {
-  flex: 1;
-  min-height: 0;
-  height: 0; /* allows flex to shrink */
-}
-
-.export-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 8px 10px;
-  flex-shrink: 0;
-}
-
-.export-file-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.export-file-icon {
-  font-size: 13px;
-  line-height: 1;
-}
-
-.export-file-name {
-  font-weight: 700;
-  color: #1e293b;
-  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Menlo, monospace;
-  flex: 1;
-}
-
-.export-file-lines {
-  font-size: 10px;
-  color: #94a3b8;
-  font-weight: 600;
-  background: #e2e8f0;
-  border-radius: 99px;
-  padding: 1px 7px;
-}
-
-.export-file-btn {
-  font-size: 11px;
-  font-weight: 700;
-  font-family: inherit;
-  padding: 2px 9px;
-  border-radius: 6px;
-  border: 1.5px solid #e2e8f0;
-  background: #ffffff;
-  color: #334155;
-  cursor: pointer;
-  transition: background .12s, border-color .12s;
-  white-space: nowrap;
-}
-
-.export-file-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-}
-
-/* ── Copilot change summary ──────────────────────────────── */
-
-.copilot-summary {
-  margin-top: 8px;
-  padding: 7px 12px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #166534;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  line-height: 1.5;
-  animation: fadeIn .25s ease;
-}
-
-.copilot-summary-icon {
-  color: #16a34a;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+@media (max-width: 700px) {
+  .right-panel { display: none; }
 }

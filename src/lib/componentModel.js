@@ -21,6 +21,7 @@
  *   }
  *   props:       object   — type-specific content (label, value, placeholder…)
  *   sourceShape: string   — original Fabric shape type ("rect", "path", …)
+ *   source:      string   — origin of component: "drawn" | "template" | "dragged"
  * }
  */
 
@@ -71,5 +72,6 @@ export function createComponent({ id, type, geometry, style, props, meta = {} })
     },
     props,
     sourceShape: meta.sourceShape ?? 'unknown',
+    source:      meta.source      ?? 'drawn',
   }
 }

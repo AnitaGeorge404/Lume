@@ -7,54 +7,56 @@ function aspectRatio(w, h) {
   return w / Math.max(1, h)
 }
 
-// Compactness: a perfect circle = 1, very elongated = 0. Helps distinguish round freehand vs wide blobs.
-function detectComponentType(object) {
-  const { shape, width = 1, height = 1 } = object
+function unique(values) {
+  return [...new Set(values)]
+}
 
-  // ── Drawn Lines ──────────────────────────────────────────────
+function candidateTypesForObject(object) {
+  const { shape, width = 1, height = 1 } = object
+  const ar = aspectRatio(width, height)
+  const area = width * height
+
   if (shape === 'line') {
     const dx = Math.abs((object.x2 ?? 0) - (object.x1 ?? 0))
     const dy = Math.abs((object.y2 ?? 0) - (object.y1 ?? 0))
-    if (dx > dy * 2.5 && dx > 60) return 'Slider'
-    return 'Divider'
+    if (dx > dy * 2.5 && dx > 60) return ['Slider', 'Divider']
+    return ['Divider', 'Slider']
   }
 
-  // ── Tool Circles ─────────────────────────────────────────────
   if (shape === 'circle') {
     const r = object.radius ?? width / 2
-    if (r < 35) return 'Badge'
-    return 'Button'
+    if (r < 24) return ['Badge', 'Button']
+    if (r < 56) return ['Button', 'Badge', 'Card']
+    return ['Card', 'Button']
   }
 
-  // ── Tool Rectangles ──────────────────────────────────────────
   if (shape === 'rect') {
-    const ar = aspectRatio(width, height)
-    if (width > 240 && height > 130) return 'Card'
-    if (ar > 3.5 && height < 55) return 'Slider'
-    if (ar > 1.5 && height < 55) return 'Input'
-    if (ar > 1.2 && height < 75) return 'Button'
-    if (width > 160 && height > 100) return 'Card'
-    return 'Button'
+    if (width > 240 && height > 130) return ['Card', 'Input']
+    if (ar > 4 && height < 44) return ['Slider', 'Divider', 'Input']
+    if (ar > 2 && height < 62) return ['Input', 'Button', 'Slider']
+    if (ar > 1.2 && height < 78) return ['Button', 'Input']
+    if (width > 150 && height > 90) return ['Card', 'Button']
+    return ['Button', 'Badge']
   }
 
-  // ── Freehand Paths ───────────────────────────────────────────
+  if (shape === 'path') {
+    if (ar > 4.5 && height < 40) return ['Slider', 'Divider', 'Input']
+    if (area > 26000 && ar > 0.5 && ar < 3.5) return ['Card', 'Button']
+    if (ar > 2.6 && height < 72 && width > 90) return ['Input', 'Button']
+    if (area < 7000) return ['Badge', 'Button', 'Divider']
+    return ['Button', 'Badge', 'Card']
+  }
+
+  return ['Button']
+}
+
+function isLowConfidence(object, candidates) {
+  const { shape, width = 1, height = 1 } = object
   if (shape === 'path') {
     const ar = aspectRatio(width, height)
-    const area = width * height
-
-    // Very wide, flat → Slider
-    if (ar > 4.5 && height < 40) return 'Slider'
-    // Tallest + widest blobs → Card (needs real estate)
-    if (area > 28000 && ar > 0.5 && ar < 3.5) return 'Card'
-    // Wide & moderate height → Input
-    if (ar > 2.8 && height < 70 && width > 90) return 'Input'
-    // Small-ish, mostly squarish → Button
-    if (area < 8000) return 'Button'
-    // Wide but not huge → Button
-    return 'Button'
+    return ar < 1.15 && ar > 0.85 && width < 90 && height < 90
   }
-
-  return 'Button'
+  return candidates.length <= 1
 }
 
 export function defaultsForType(type, index) {
@@ -68,33 +70,67 @@ export function defaultsForType(type, index) {
 }
 
 const TYPE_STYLES = {
-  Button:  { fill: '#6366f1', text: '#ffffff', border: '#4f46e5', radius: 12, shadow: true },
-  Card:    { fill: '#ffffff', text: '#111827', border: '#e2e8f0', radius: 16, shadow: true },
-  Slider:  { fill: '#0ea5e9', text: '#0c4a6e', border: '#0284c7', radius: 8,  shadow: false },
-  Input:   { fill: '#f8fafc', text: '#334155', border: '#94a3b8', radius: 10, shadow: false },
-  Badge:   { fill: '#f0fdf4', text: '#15803d', border: '#86efac', radius: 999, shadow: false },
+  Button:  { fill: '#2563eb', text: '#ffffff', border: '#1d4ed8', radius: 12, shadow: true },
+  Card:    { fill: '#ffffff', text: '#0f172a', border: '#e2e8f0', radius: 16, shadow: true },
+  Slider:  { fill: '#e0f2fe', text: '#075985', border: '#0284c7', radius: 10, shadow: false },
+  Input:   { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12, shadow: false },
+  Badge:   { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
   Divider: { fill: 'transparent', text: '#94a3b8', border: '#e2e8f0', radius: 0, shadow: false },
+}
+
+export function getSketchSuggestions(object, { overlapsComponent = false } = {}) {
+  const base = candidateTypesForObject(object)
+  const lowConfidence = isLowConfidence(object, base)
+  const limited = lowConfidence ? base.slice(0, 2) : base.slice(0, 4)
+
+  const suggestions = unique(limited).map(type => ({
+    id: `type-${type}`,
+    kind: 'component',
+    type,
+    label: type,
+  }))
+
+  if (overlapsComponent) {
+    suggestions.push({
+      id: 'attach-decor',
+      kind: 'attach',
+      type: 'Badge',
+      label: 'Attach Decor',
+    })
+  }
+
+  suggestions.push({
+    id: 'keep-drawing',
+    kind: 'keep',
+    type: null,
+    label: 'Keep Drawing',
+  })
+
+  return suggestions
+}
+
+export function createComponentFromSketch(object, type, index = 0) {
+  const baseStyle = TYPE_STYLES[type] ?? TYPE_STYLES.Button
+  return {
+    id: object.id,
+    type,
+    x: clamp(Math.round(object.x), 0, 700),
+    y: clamp(Math.round(object.y), 0, 450),
+    width: clamp(Math.round(object.width), 50, 360),
+    height: clamp(Math.round(object.height), 20, 240),
+    props: defaultsForType(type, index),
+    style: {
+      ...baseStyle,
+      radius: object.shape === 'circle' ? 999 : baseStyle.radius,
+    },
+    sourceShape: object.shape,
+    source: 'drawn',
+  }
 }
 
 export function interpretSketchObjects(sketchObjects) {
   return sketchObjects.map((object, index) => {
-    const type = detectComponentType(object)
-    const baseStyle = TYPE_STYLES[type] ?? TYPE_STYLES.Button
-
-    return {
-      id: object.id,
-      type,
-      x: clamp(Math.round(object.x), 0, 700),
-      y: clamp(Math.round(object.y), 0, 450),
-      width:  clamp(Math.round(object.width),  50, 360),
-      height: clamp(Math.round(object.height), 20, 240),
-      props: defaultsForType(type, index),
-      style: {
-        ...baseStyle,
-        // circles keep pill radius regardless of default
-        radius: object.shape === 'circle' ? 999 : baseStyle.radius,
-      },
-      sourceShape: object.shape,
-    }
+    const type = candidateTypesForObject(object)[0] ?? 'Button'
+    return createComponentFromSketch(object, type, index)
   })
 }
