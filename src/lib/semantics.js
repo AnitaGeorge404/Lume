@@ -57,6 +57,27 @@ export const SEMANTIC_ROLES = {
     aria:        'separator',
     description: 'Creates visual breathing room. Should be invisible when working.',
   },
+  Nav: {
+    intent:      'navigation',
+    feeling:     'neutral',
+    role:        'nav',
+    aria:        'navigation',
+    description: 'Global site navigation. Should feel stable and anchored.',
+  },
+  Hero: {
+    intent:      'impression',
+    feeling:     'decisive',
+    role:        'banner',
+    aria:        'banner',
+    description: 'First impression of the page. Bold, high-contrast, immediate.',
+  },
+  Section: {
+    intent:      'information',
+    feeling:     'contained',
+    role:        'region',
+    aria:        'region',
+    description: 'A named content area. Should feel organized and readable.',
+  },
 }
 
 // ─── Animation profiles ────────────────────────────────────────────────────────

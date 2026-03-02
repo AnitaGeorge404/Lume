@@ -3,10 +3,11 @@ import './App.css'
 import { DrawingCanvas }   from './components/DrawingCanvas'
 import { LeftPanel }       from './components/LeftPanel'
 import { RightPanel }      from './components/RightPanel'
+import { PreviewPanel }    from './components/PreviewPanel'
 import { CanvasDropZone }  from './components/CanvasDropZone'
 import { createComponentFromSketch, getSketchSuggestions, defaultsForType } from './lib/shapeInterpreter'
 import { refineComponentsWithPrompt }              from './lib/copilot'
-import { generateReactCode }                       from './lib/codeGenerator'
+import { generateReactCode }                              from './lib/codeGenerator'
 import { loadMemory, getDominantProfile, clearMemory } from './lib/intentEngine'
 import { cloneTemplate }                           from './lib/templates'
 import {
@@ -15,6 +16,30 @@ import {
   enhanceReconstructedComponents,
   renderComparisonPreviewSvg,
 } from './lib/screenshotEnhancer'
+import { extractUIBlocks, detectFramework }      from './lib/codeParser'
+import {
+  enhanceFromCodeBlocks,
+  renderCodePreviewSvg,
+  renderBeforePreviewSvg,
+} from './lib/codeEnhancer'
+
+// ─── Code pipeline display labels ───────────────────────────────────────────
+const FRAMEWORK_DISPLAY = {
+  react:          'React',
+  vue:            'Vue',
+  'react-native': 'React Native',
+  flutter:        'Flutter',
+  html:           'HTML / CSS',
+  unknown:        'Code',
+}
+
+const LAYOUT_DISPLAY = {
+  dashboard: 'Analytics Dashboard',
+  landing:   'Landing Page',
+  app:       'App Interface',
+  form:      'Form',
+  content:   'Content Page',
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function downloadText(filename, text) {
@@ -191,6 +216,9 @@ const COMP_DEFAULT_SIZES = {
   Input:   { w: 240, h: 48 },
   Badge:   { w: 72,  h: 32 },
   Divider: { w: 360, h: 4  },
+  Nav:     { w: 728, h: 56 },
+  Hero:    { w: 728, h: 140 },
+  Section: { w: 280, h: 110 },
 }
 
 const COMP_DEFAULT_STYLES = {
@@ -200,6 +228,9 @@ const COMP_DEFAULT_STYLES = {
   Input:   { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12,  shadow: false },
   Badge:   { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
   Divider: { fill: 'transparent', text: '#94a3b8', border: '#e2e8f0', radius: 0, shadow: false },
+  Nav:     { fill: '#1e293b', text: '#f8fafc', border: '#334155', radius: 0,   shadow: true  },
+  Hero:    { fill: '#6d28d9', text: '#ffffff', border: '#7c3aed', radius: 0,   shadow: true  },
+  Section: { fill: '#f0fdfa', text: '#134e4a', border: '#99f6e4', radius: 12,  shadow: false },
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -213,6 +244,8 @@ export default function App() {
   const [drawnChoices,       setDrawnChoices]       = useState({})
   const [dismissedHints,     setDismissedHints]     = useState([])
   const [screenshotState,    setScreenshotState]    = useState(null)
+  const [codeState,          setCodeState]          = useState(null)
+  const [appliedCodeFw,      setAppliedCodeFw]      = useState(null)
   const [canvasKey,          setCanvasKey]          = useState(0)
 
   // ── Copilot state ─────────────────────────────────────────────────────────────
@@ -283,6 +316,27 @@ export default function App() {
     return `data:image/svg+xml;utf8,${encodeURIComponent(enhancedSvg)}`
   }, [enhancedSvg])
 
+  // ── Code enhancement pipeline previews ──────────────────────────────────────
+  const codeBeforeSvg = useMemo(() => {
+    if (!codeState?.blocks?.length) return ''
+    return renderBeforePreviewSvg(codeState.blocks)
+  }, [codeState])
+
+  const codeAfterSvg = useMemo(() => {
+    if (!codeState?.proposedComponents?.length) return ''
+    return renderCodePreviewSvg(codeState.proposedComponents)
+  }, [codeState])
+
+  const codeBeforeDataUrl = useMemo(
+    () => codeBeforeSvg ? `data:image/svg+xml;utf8,${encodeURIComponent(codeBeforeSvg)}` : '',
+    [codeBeforeSvg],
+  )
+
+  const codeAfterDataUrl = useMemo(
+    () => codeAfterSvg ? `data:image/svg+xml;utf8,${encodeURIComponent(codeAfterSvg)}` : '',
+    [codeAfterSvg],
+  )
+
   const groupedSuggestions = useMemo(() => {
     const order = ['shape', 'ui', 'decor', 'meaning', 'drawing']
     const grouped = order
@@ -313,8 +367,8 @@ export default function App() {
 
   // ── 3. Code generation ────────────────────────────────────────────────────────
   const { jsx, css, themeJs, combined } = useMemo(
-    () => generateReactCode(components, profile),
-    [components, profile],
+    () => generateReactCode(components, profile, { sourceFramework: appliedCodeFw }),
+    [components, profile, appliedCodeFw],
   )
 
   // ── Canvas handlers ───────────────────────────────────────────────────────────
@@ -352,12 +406,15 @@ export default function App() {
     setDrawnChoices({})
     setDismissedHints([])
     setScreenshotState(null)
+    setCodeState(null)
+    setAppliedCodeFw(null)
     setTypeOverrides({})
     setCanvasKey(k => k + 1)
   }
 
   const handleScreenshotUpload = async (file) => {
     if (!file) return
+    setCodeState(null) // mutual exclusion — one workbench at a time
     const reader = new FileReader()
     reader.onload = async () => {
       const dataUrl = String(reader.result ?? '')
@@ -422,6 +479,79 @@ export default function App() {
   }
 
   const handleScreenshotDiscard = () => setScreenshotState(null)
+
+  // ── Code pipeline handlers ────────────────────────────────────────────────
+  const handleCodeChange = (rawCode) => {
+    if (!rawCode?.trim()) {
+      setCodeState(null)
+      return
+    }
+    setScreenshotState(null) // mutual exclusion
+    const framework = detectFramework(rawCode)
+    setCodeState(prev => ({
+      ...(prev ?? { fileName: null }),
+      rawCode,
+      framework,
+      blocks: [],
+      proposedComponents: [],
+      status: 'idle',
+      layout: null,
+      issues: [],
+      elementCount: 0,
+    }))
+  }
+
+  const handleCodeUpload = (file) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const rawCode = String(reader.result ?? '')
+      if (!rawCode?.trim()) return
+      setScreenshotState(null) // mutual exclusion
+      const framework = detectFramework(rawCode)
+      setCodeState({
+        rawCode,
+        fileName: file.name,
+        framework,
+        blocks: [],
+        proposedComponents: [],
+        status: 'idle',
+        layout: null,
+        issues: [],
+        elementCount: 0,
+      })
+    }
+    reader.readAsText(file)
+  }
+
+  const handleCodeParse = () => {
+    if (!codeState?.rawCode?.trim()) return
+    const { framework, blocks, elementCount } = extractUIBlocks(codeState.rawCode)
+    const { components, layout, issues } = enhanceFromCodeBlocks(blocks, framework)
+    setCodeState(prev => ({
+      ...prev,
+      framework,
+      blocks,
+      proposedComponents: components,
+      status: 'enhanced',
+      layout,
+      issues,
+      elementCount,
+    }))
+  }
+
+  const handleCodeApply = () => {
+    if (!codeState?.proposedComponents?.length) return
+    setTemplateComponents(codeState.proposedComponents)
+    setDraggedComponents([])
+    setSketchObjects([])
+    setDrawnChoices({})
+    setDismissedHints([])
+    setCanvasKey(k => k + 1)
+    setAppliedCodeFw(codeState.framework ?? null)
+    setCodeState(null)
+  }
+
+  const handleCodeDiscard = () => setCodeState(null)
 
   const applySuggestion = (suggestion) => {
     if (!activeSketch) return
@@ -507,6 +637,11 @@ export default function App() {
 
   const dominantProfile = getDominantProfile(memory)
   const sessionCount    = memory?.sessionCount ?? 0
+  const frameworkTag    = FRAMEWORK_DISPLAY[codeState?.framework ?? appliedCodeFw ?? 'react'] ?? 'React'
+  const styleTags       = [
+    appliedPrompt ? profile.mood : null,
+    dominantProfile,
+  ].filter(Boolean)
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -517,7 +652,7 @@ export default function App() {
         <div className="topbar-brand">
           <span className="brand-icon">✦</span>
           <span className="brand-name">Lume</span>
-          <span className="brand-tag">Sketch → React</span>
+          <span className="brand-tag">UI Enhancement Platform</span>
         </div>
 
         <div className="topbar-meta">
@@ -529,6 +664,16 @@ export default function App() {
           {appliedPrompt && (
             <span className="meta-chip mood-chip">✨ {profile.mood}</span>
           )}
+          {codeState && (
+            <span className="meta-chip code-fw-chip analyzing" title="Code analysis in progress">
+              ⟨/⟩ {FRAMEWORK_DISPLAY[codeState.framework] ?? 'Code'}
+            </span>
+          )}
+          {appliedCodeFw && !codeState && (
+            <span className="meta-chip code-fw-chip" title="Components enhanced from code">
+              ⟨/⟩ {appliedCodeFw}
+            </span>
+          )}
           {dominantProfile && sessionCount >= 2 && (
             <span className="meta-chip memory-chip" title="Your preferred style">
               🧠 {dominantProfile}
@@ -539,6 +684,25 @@ export default function App() {
               ✕ Clear
             </button>
           )}
+
+          <div className="topbar-tabs" role="tablist" aria-label="Workspace tabs">
+            {[
+              ['preview', 'Preview'],
+              ['code', 'Code'],
+              ['ai', 'AI'],
+              ['inspector', 'Inspector'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                className={`topbar-tab ${rightTab === id ? 'active' : ''}`}
+                onClick={() => setRightTab(id)}
+                role="tab"
+                aria-selected={rightTab === id}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -555,12 +719,19 @@ export default function App() {
           onScreenshotApply={handleScreenshotApply}
           onScreenshotDiscard={handleScreenshotDiscard}
           screenshotState={screenshotState}
+          onCodeUpload={handleCodeUpload}
+          onCodeChange={handleCodeChange}
+          onCodeParse={handleCodeParse}
+          onCodeApply={handleCodeApply}
+          onCodeDiscard={handleCodeDiscard}
+          codeState={codeState}
         />
 
-        {/* CENTER — Drawing Canvas */}
-        <section className="canvas-area">
-          {screenshotState?.dataUrl && (
-            <aside className="screenshot-workbench">
+        {/* CENTER — Canvas (top) + Live Preview (bottom) */}
+        <section className="workspace-center">
+          <div className="canvas-area">
+            {screenshotState?.dataUrl && (
+              <aside className="screenshot-workbench">
               <div className="ss-head">
                 <p className="ss-title">Polished UI Rebuild</p>
                 <span className="ss-step">{screenshotState.status === 'enhanced' ? 'Enhanced screen ready' : 'Reference loaded'}</span>
@@ -611,18 +782,98 @@ export default function App() {
                   <button className="ss-action" onClick={handleScreenshotApply} disabled={!screenshotState.proposedComponents.length}>Use Enhanced UI</button>
                 </div>
               </div>
-            </aside>
-          )}
+              </aside>
+            )}
 
-          <CanvasDropZone onDropComponent={handleDropComponent}>
-            <DrawingCanvas
-              key={canvasKey}
-              onObjectsChange={setSketchObjects}
-            />
-          </CanvasDropZone>
+            {/* Code Enhancement Workbench */}
+            {codeState && (
+              <aside className="code-workbench">
+              <div className="cw-head">
+                <div className="cw-head-text">
+                  <p className="cw-title">Code Enhancement</p>
+                  <span className="cw-step">
+                    {codeState.status === 'enhanced'
+                      ? `${FRAMEWORK_DISPLAY[codeState.framework] ?? 'Code'} · ${codeState.elementCount} element${codeState.elementCount !== 1 ? 's' : ''} → ${LAYOUT_DISPLAY[codeState.layout] ?? 'polished UI'}`
+                      : codeState.rawCode?.trim()?.length > 0
+                        ? `${FRAMEWORK_DISPLAY[codeState.framework] ?? 'Code'} · Click Analyze to rebuild`
+                        : 'Paste code in the left panel to start'}
+                  </span>
+                </div>
+                <button className="cw-close" onClick={handleCodeDiscard} title="Close">×</button>
+              </div>
 
-          {activeSketch && activeSuggestions.length > 0 && (
-            <aside className="suggestion-panel" aria-live="polite">
+              <div className="cw-preview-row">
+                <div className="cw-pane">
+                  <div className="cw-pane-label">Before <span className="cw-badge">Original</span></div>
+                  <div className="cw-preview-frame before">
+                    {codeBeforeDataUrl ? (
+                      <img src={codeBeforeDataUrl} alt="Original code structure wireframe" />
+                    ) : (
+                      <div className="cw-preview-empty">
+                        <span className="cw-empty-icon">⟨/⟩</span>
+                        <span>Structure wireframe appears after analyze</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="cw-pane">
+                  <div className="cw-pane-label">After <span className="cw-badge enhanced">Enhanced</span></div>
+                  <div className="cw-preview-frame after">
+                    {codeAfterDataUrl ? (
+                      <img src={codeAfterDataUrl} alt="Polished enhanced UI preview" />
+                    ) : (
+                      <div className="cw-preview-empty">
+                        <span className="cw-empty-icon">✦</span>
+                        <span>Polished UI preview appears after analyze</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {codeState.status === 'enhanced' && codeState.blocks?.length > 0 && (
+                <div className="cw-blocks">
+                  {Array.from(new Set(codeState.blocks.map(b => b.kind))).slice(0, 8).map(kind => (
+                    <span key={kind} className="cw-block-chip">{kind}</span>
+                  ))}
+                  <span className="cw-block-count">{codeState.blocks.length} block{codeState.blocks.length !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+
+              {codeState.issues?.length > 0 && (
+                <div className="cw-issues">
+                  {codeState.issues.slice(0, 4).map((issue, i) => (
+                    <div key={i} className="cw-issue">✦ {issue}</div>
+                  ))}
+                </div>
+              )}
+
+              <div className="cw-foot">
+                <div className="cw-foot-actions">
+                  <button className="cw-action ghost" onClick={handleCodeParse}>
+                    {codeState.status === 'enhanced' ? 'Re-analyze' : 'Analyze & Enhance'}
+                  </button>
+                  <button
+                    className="cw-action"
+                    onClick={handleCodeApply}
+                    disabled={!codeState.proposedComponents?.length}
+                  >
+                    Apply to Canvas
+                  </button>
+                </div>
+              </div>
+              </aside>
+            )}
+
+            <CanvasDropZone onDropComponent={handleDropComponent}>
+              <DrawingCanvas
+                key={canvasKey}
+                onObjectsChange={setSketchObjects}
+              />
+            </CanvasDropZone>
+
+            {activeSketch && activeSuggestions.length > 0 && (
+              <aside className="suggestion-panel" aria-live="polite">
               <div className="suggestion-head">
                 <div>
                   <p className="suggestion-title">Interpretation Suggestions</p>
@@ -654,8 +905,29 @@ export default function App() {
                   </div>
                 </section>
               ))}
-            </aside>
-          )}
+              </aside>
+            )}
+          </div>
+
+          <section className="preview-stage" aria-label="Live preview">
+            <div className="preview-stage-head">
+              <div>
+                <p className="preview-stage-kicker">LIVE PREVIEW</p>
+                <h3 className="preview-stage-title">Production Look</h3>
+              </div>
+              <div className="preview-stage-meta">
+                <span className="meta-chip">{components.length} component{components.length !== 1 ? 's' : ''}</span>
+                <span className="meta-chip code-fw-chip">⟨/⟩ {frameworkTag}</span>
+                {styleTags.slice(0, 2).map(tag => (
+                  <span key={tag} className="meta-chip mood-chip">✦ {tag}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="preview-hero-shell">
+              <PreviewPanel components={components} profile={profile} />
+            </div>
+          </section>
         </section>
 
         {/* RIGHT — Preview / Code / AI / Inspector */}
@@ -689,6 +961,8 @@ export default function App() {
           onClearMemory={handleClearMemory}
           activeTab={rightTab}
           onTabChange={setRightTab}
+          frameworkTag={frameworkTag}
+          styleTags={styleTags}
         />
       </main>
     </div>

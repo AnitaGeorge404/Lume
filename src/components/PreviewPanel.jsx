@@ -191,7 +191,76 @@ function UIDivider({ c }) {
   )
 }
 
-// ─── Main panel ───────────────────────────────────────────────────────────────
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+
+function UINav({ c }) {
+  const links = Array.isArray(c.props.links) ? c.props.links : ['Home', 'About', 'Contact']
+  return (
+    <nav style={{
+      width: '100%', height: '100%',
+      background: c.style.fill, color: c.style.text,
+      borderBottom: `1.5px solid ${c.style.border}`,
+      display: 'flex', alignItems: 'center', gap: 24,
+      padding: '0 20px', boxSizing: 'border-box',
+      boxShadow: c.style.shadow ? '0 2px 8px rgba(0,0,0,.15)' : 'none',
+    }}>
+      <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '.01em' }}>{c.props.brand || 'App'}</span>
+      <div style={{ display: 'flex', gap: 14, marginLeft: 'auto' }}>
+        {links.map((link, i) => (
+          <a key={i} href="#" style={{ color: 'inherit', textDecoration: 'none', fontSize: 12, opacity: .85, fontWeight: 500 }}>{link}</a>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
+// ─── Hero ─────────────────────────────────────────────────────────────────────
+
+function UIHero({ c }) {
+  return (
+    <section style={{
+      width: '100%', height: '100%',
+      background: `linear-gradient(135deg, ${c.style.fill}, ${c.style.border})`,
+      color: c.style.text,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 10, padding: '20px 16px',
+      boxSizing: 'border-box', textAlign: 'center',
+    }}>
+      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{c.props.headline}</h1>
+      {c.props.subhead && (
+        <p style={{ margin: 0, fontSize: 13, opacity: .78 }}>{c.props.subhead}</p>
+      )}
+      {c.props.cta && (
+        <button style={{
+          marginTop: 8, padding: '7px 18px',
+          background: 'rgba(255,255,255,.18)', color: 'inherit',
+          border: '2px solid rgba(255,255,255,.5)', borderRadius: 999,
+          cursor: 'pointer', fontSize: 12, fontWeight: 700,
+        }}>{c.props.cta}</button>
+      )}
+    </section>
+  )
+}
+
+// ─── Section ──────────────────────────────────────────────────────────────────
+
+function UISection({ c }) {
+  return (
+    <section style={{
+      width: '100%', height: '100%',
+      background: c.style.fill, color: c.style.text,
+      border: `1.5px solid ${c.style.border}`,
+      borderRadius: c.style.radius,
+      padding: '16px 20px', boxSizing: 'border-box',
+    }}>
+      <h2 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700 }}>{c.props.heading}</h2>
+      <p style={{ margin: 0, fontSize: 12, opacity: .7, lineHeight: 1.6 }}>{c.props.body}</p>
+    </section>
+  )
+}
+
+
 
 export function PreviewPanel({ components, profile }) {
   const outerRef = useRef(null)
@@ -240,6 +309,12 @@ export function PreviewPanel({ components, profile }) {
         return <UIBadge key={c.id} c={c} />
       case 'Divider':
         return <UIDivider key={c.id} c={c} />
+      case 'Nav':
+        return <UINav key={c.id} c={c} />
+      case 'Hero':
+        return <UIHero key={c.id} c={c} />
+      case 'Section':
+        return <UISection key={c.id} c={c} />
       default:
         return (
           <UIButton
@@ -280,7 +355,10 @@ export function PreviewPanel({ components, profile }) {
                   c.type === 'Button'  ? 40  :
                   c.type === 'Slider'  ? 60  :
                   c.type === 'Input'   ? 36  :
-                  c.type === 'Divider' ? 2   : 28
+                  c.type === 'Divider' ? 2   :
+                  c.type === 'Nav'     ? 56  :
+                  c.type === 'Hero'    ? 100 :
+                  c.type === 'Section' ? 80  : 28
                 ),
               }}
             >

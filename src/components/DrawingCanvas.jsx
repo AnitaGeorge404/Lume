@@ -38,6 +38,14 @@ export function DrawingCanvas({ onObjectsChange }) {
   const sequenceRef = useRef(0)
   const [tool, setTool] = useState('draw')
 
+  const tools = [
+    ['draw', '✏︎', 'Freehand'],
+    ['rect', '▭', 'Rectangle'],
+    ['circle', '◯', 'Circle'],
+    ['line', '／', 'Line'],
+    ['select', '⌖', 'Select'],
+  ]
+
   useEffect(() => {
     const canvas = new Canvas(canvasElRef.current, {
       width: CANVAS_WIDTH,
@@ -222,27 +230,24 @@ export function DrawingCanvas({ onObjectsChange }) {
   return (
     <div className="drawing-canvas-wrap">
       <div className="tool-row">
-        {[
-          ['draw', 'Freehand'],
-          ['rect', 'Rectangle'],
-          ['circle', 'Circle'],
-          ['line', 'Line'],
-          ['select', 'Select'],
-        ].map(([value, label]) => (
+        {tools.map(([value, icon, label]) => (
           <button
             key={value}
             className={tool === value ? 'active' : ''}
             onClick={() => setTool(value)}
           >
-            {label}
+            <span className="tool-icon" aria-hidden="true">{icon}</span>
+            <span className="tool-label">{label}</span>
           </button>
         ))}
 
         <button className="ghost" onClick={undo}>
-          Undo
+          <span className="tool-icon" aria-hidden="true">↶</span>
+          <span className="tool-label">Undo</span>
         </button>
         <button className="ghost" onClick={clear}>
-          Clear
+          <span className="tool-icon" aria-hidden="true">✕</span>
+          <span className="tool-label">Clear</span>
         </button>
       </div>
 

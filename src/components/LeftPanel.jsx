@@ -4,13 +4,31 @@ import { COMPONENT_TYPES, TYPE_ACCENT } from '../lib/componentModel'
 import './LeftPanel.css'
 
 const MODES = [
-  { id: 'draw', icon: '✏︎', label: 'Draw' },
-  { id: 'upload', icon: '🖼', label: 'Upload' },
-  { id: 'templates', icon: '◫', label: 'Templates' },
-  { id: 'components', icon: '◧', label: 'Parts' },
-  { id: 'styles', icon: '✦', label: 'Styles' },
-  { id: 'layouts', icon: '▦', label: 'Layouts' },
+  { id: 'draw',       icon: '✏︎', label: 'Draw'      },
+  { id: 'code',       icon: '</>',label: 'Code'      },
+  { id: 'upload',     icon: '🖼', label: 'Image'     },
+  { id: 'templates',  icon: '◫',  label: 'Templates' },
+  { id: 'components', icon: '◧',  label: 'Parts'     },
+  { id: 'styles',     icon: '✦',  label: 'Styles'    },
+  { id: 'layouts',    icon: '▦',  label: 'Layouts'   },
 ]
+
+const FRAMEWORK_LABELS = {
+  react:          'React',
+  vue:            'Vue',
+  'react-native': 'React Native',
+  flutter:        'Flutter',
+  html:           'HTML / CSS',
+  unknown:        'Code',
+}
+
+const LAYOUT_LABELS = {
+  dashboard: 'Dashboard',
+  landing:   'Landing Page',
+  app:       'App Interface',
+  form:      'Form',
+  content:   'Content Page',
+}
 
 const STYLE_CARDS = [
   { key: 'default', label: 'Default', prompt: '', colors: ['#eef2ff', '#ffffff', '#6366f1'], radius: 12 },
@@ -289,11 +307,19 @@ export function LeftPanel({
   onScreenshotApply,
   onScreenshotDiscard,
   screenshotState,
+  // Code pipeline
+  onCodeUpload,
+  onCodeChange,
+  onCodeParse,
+  onCodeApply,
+  onCodeDiscard,
+  codeState,
 }) {
   const [mode, setMode] = useState('templates')
   const [category, setCategory] = useState('Featured')
   const [draggingType, setDraggingType] = useState(null)
   const uploadRef = useRef(null)
+  const codeFileRef = useRef(null)
 
   const visibleTemplates = useMemo(() => (
     TEMPLATES.filter(template => (TEMPLATE_CATEGORY_MAP[template.id] ?? ['All']).includes(category))
@@ -313,6 +339,7 @@ export function LeftPanel({
   }
 
   const hasScreenshot = Boolean(screenshotState?.dataUrl)
+  const hasCode = Boolean(codeState?.rawCode?.trim())
 
   return (
     <aside className="left-panel">
@@ -352,6 +379,103 @@ export function LeftPanel({
               <div className="lp-tip"><strong>Long line</strong><span>→ Slider / divider</span></div>
               <div className="lp-tip"><strong>Small circle</strong><span>→ Badge token</span></div>
             </div>
+          </section>
+        )}
+
+        {mode === 'code' && (
+          <section className="lp-section">
+            <div className="lp-section-head">
+              <h3>Code Upload</h3>
+              <span>Code → Better UI</span>
+            </div>
+
+            <div className="lp-code-intro">
+              <p>Paste or upload your existing UI code. Lume reconstructs it using modern, production-ready components.</p>
+              <div className="lp-code-formats">
+                {['HTML', 'React', 'Vue', 'Flutter', 'RN'].map(f => (
+                  <span key={f} className="lp-code-fmt">{f}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Hidden code file input */}
+            <input
+              ref={codeFileRef}
+              type="file"
+              accept=".html,.css,.jsx,.tsx,.js,.ts,.vue,.dart,.txt"
+              className="lp-upload-input"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file) return
+                onCodeUpload(file)
+                event.target.value = ''
+              }}
+            />
+
+            <button className="lp-upload-btn" onClick={() => codeFileRef.current?.click()}>
+              📎 Upload code file
+            </button>
+
+            {/* Framework detection badge */}
+            {codeState?.rawCode?.trim() && (
+              <div className="lp-code-fw-row">
+                <span className="lp-code-fw-badge">
+                  {FRAMEWORK_LABELS[codeState.framework] ?? 'Code'}
+                </span>
+                {codeState.elementCount > 0 && (
+                  <span className="lp-code-fw-count">
+                    {codeState.elementCount} element{codeState.elementCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {codeState.fileName && (
+                  <span className="lp-code-fw-file" title={codeState.fileName}>
+                    {codeState.fileName.length > 20 ? `${codeState.fileName.slice(0, 18)}…` : codeState.fileName}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Code textarea */}
+            <textarea
+              className="lp-code-textarea"
+              placeholder={`Paste HTML, React, Vue, Flutter or React Native code…\n\nExample:\n<nav>…</nav>\n<section class="hero">…</section>`}
+              value={codeState?.rawCode ?? ''}
+              onChange={e => onCodeChange(e.target.value)}
+              spellCheck={false}
+            />
+
+            {/* Analysis results */}
+            {codeState?.status === 'enhanced' && (
+              <div className="lp-code-insights">
+                <div className="lp-code-insight-header">
+                  <span className="lp-code-insight-icon">◈</span>
+                  <span>
+                    {LAYOUT_LABELS[codeState.layout] ?? 'UI Layout'} detected ·{' '}
+                    <strong>{codeState.elementCount}</strong> elements
+                  </span>
+                </div>
+                {codeState.issues.slice(0, 3).map((issue, i) => (
+                  <div key={i} className="lp-code-issue">✦ {issue}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            {hasCode ? (
+              <div className="lp-code-actions">
+                <button className="lp-upload-action" onClick={onCodeParse}>
+                  {codeState?.status === 'enhanced' ? 'Re-analyze' : 'Analyze & Enhance'}
+                </button>
+                <button
+                  className="lp-upload-action ghost"
+                  onClick={onCodeApply}
+                  disabled={!codeState?.proposedComponents?.length}
+                >
+                  Apply to Canvas
+                </button>
+                <button className="lp-upload-discard" onClick={onCodeDiscard}>Discard code</button>
+              </div>
+            ) : null}
           </section>
         )}
 

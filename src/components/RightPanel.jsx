@@ -1,4 +1,3 @@
-import { PreviewPanel } from './PreviewPanel'
 import { ComponentList } from './ComponentList'
 import { PRESETS } from '../lib/copilot'
 import './RightPanel.css'
@@ -22,6 +21,7 @@ export function RightPanel({
   dominantProfile, sessionCount, onClearMemory,
   // tab state (lifted to App so canvas/preview stay in sync)
   activeTab, onTabChange,
+  frameworkTag, styleTags,
 }) {
   return (
     <aside className="right-panel">
@@ -44,7 +44,34 @@ export function RightPanel({
       {/* Preview */}
       {activeTab === 'preview' && (
         <div className="rp-body rp-preview-body">
-          <PreviewPanel components={components} profile={profile} />
+          <section className="rp-preview-hub">
+            <p className="rp-preview-kicker">Center Preview Active</p>
+            <h3 className="rp-preview-title">Live output is shown in the main workspace</h3>
+            <p className="rp-preview-sub">Use this panel for context and quick status while the bottom-center preview stays interactive.</p>
+
+            <div className="rp-preview-meta">
+              <span className="rp-mini-chip">{components.length} component{components.length !== 1 ? 's' : ''}</span>
+              <span className="rp-mini-chip fw">⟨/⟩ {frameworkTag ?? 'React'}</span>
+              {(styleTags ?? []).slice(0, 3).map(tag => (
+                <span key={tag} className="rp-mini-chip style">✦ {tag}</span>
+              ))}
+            </div>
+
+            <div className="rp-preview-status-grid">
+              <article className="rp-status-card">
+                <span>Canvas Sync</span>
+                <strong>Live</strong>
+              </article>
+              <article className="rp-status-card">
+                <span>Output Quality</span>
+                <strong>Enhanced</strong>
+              </article>
+              <article className="rp-status-card">
+                <span>Design Mood</span>
+                <strong>{profile?.mood ?? 'default'}</strong>
+              </article>
+            </div>
+          </section>
         </div>
       )}
 

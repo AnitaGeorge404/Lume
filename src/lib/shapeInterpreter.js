@@ -8,21 +8,27 @@ function aspectRatio(w, h) {
 
 export function defaultsForType(type, index) {
   const i = index + 1
-  if (type === 'Slider') return { label: `Range ${i}`, value: 50, min: 0, max: 100 }
-  if (type === 'Card') return { title: `Card ${i}`, body: 'Your content here' }
-  if (type === 'Input') return { placeholder: 'Enter text...' }
-  if (type === 'Badge') return { label: `${i}` }
+  if (type === 'Slider')  return { label: `Range ${i}`, value: 50, min: 0, max: 100 }
+  if (type === 'Card')    return { title: `Card ${i}`, body: 'Your content here' }
+  if (type === 'Input')   return { placeholder: 'Enter text...' }
+  if (type === 'Badge')   return { label: `${i}` }
   if (type === 'Divider') return { label: '' }
+  if (type === 'Nav')     return { brand: 'MyApp', links: ['Home', 'Features', 'Pricing', 'Docs'] }
+  if (type === 'Hero')    return { headline: 'Build Amazing UIs', subhead: 'Fast. Flexible. Beautiful.', cta: 'Get Started' }
+  if (type === 'Section') return { heading: 'Features', body: 'Describe what makes this section special.' }
   return { label: `Button ${i}` }
 }
 
 const TYPE_STYLES = {
-  Button: { fill: '#2563eb', text: '#ffffff', border: '#1d4ed8', radius: 12, shadow: true },
-  Card: { fill: '#ffffff', text: '#0f172a', border: '#e2e8f0', radius: 16, shadow: true },
-  Slider: { fill: '#e0f2fe', text: '#075985', border: '#0284c7', radius: 10, shadow: false },
-  Input: { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12, shadow: false },
-  Badge: { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
+  Button:  { fill: '#2563eb', text: '#ffffff', border: '#1d4ed8', radius: 12, shadow: true },
+  Card:    { fill: '#ffffff', text: '#0f172a', border: '#e2e8f0', radius: 16, shadow: true },
+  Slider:  { fill: '#e0f2fe', text: '#075985', border: '#0284c7', radius: 10, shadow: false },
+  Input:   { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12, shadow: false },
+  Badge:   { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
   Divider: { fill: 'transparent', text: '#94a3b8', border: '#e2e8f0', radius: 0, shadow: false },
+  Nav:     { fill: '#1e293b', text: '#f8fafc', border: '#334155', radius: 0, shadow: true },
+  Hero:    { fill: '#6d28d9', text: '#ffffff', border: '#7c3aed', radius: 0, shadow: true },
+  Section: { fill: '#f0fdfa', text: '#134e4a', border: '#99f6e4', radius: 12, shadow: false },
 }
 
 function inferShapeFamily(object) {
