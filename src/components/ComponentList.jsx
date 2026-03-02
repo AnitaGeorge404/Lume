@@ -1,7 +1,7 @@
 import { COMPONENT_TYPES, TYPE_ACCENT, TYPE_EMOJI } from '../lib/componentModel'
 import './ComponentList.css'
 
-const TYPES = COMPONENT_TYPES
+const TYPES = COMPONENT_TYPES.filter(type => !['VisualClone', 'SemanticNode'].includes(type))
 const TYPE_COLOR = TYPE_ACCENT
 
 export function ComponentList({ components, overrides, onOverride }) {
@@ -33,6 +33,9 @@ export function ComponentList({ components, overrides, onOverride }) {
                 style={{ '--accent': TYPE_COLOR[effectiveType] }}
                 onChange={e => onOverride(c.id, e.target.value)}
               >
+                {!TYPES.includes(effectiveType) && (
+                  <option value={effectiveType}>{effectiveType}</option>
+                )}
                 {TYPES.map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}

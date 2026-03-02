@@ -260,6 +260,30 @@ function UISection({ c }) {
   )
 }
 
+function UIVisualClone({ c }) {
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      <img
+        src={c.props.imageUrl}
+        alt=""
+        draggable={false}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: c.props.fit || 'contain',
+          display: 'block',
+          userSelect: 'none',
+          pointerEvents: 'none',
+        }}
+      />
+    </div>
+  )
+}
+
+function UISemanticNode() {
+  return <div aria-hidden="true" style={{ width: '100%', height: '100%', pointerEvents: 'none' }} />
+}
+
 
 
 export function PreviewPanel({ components, profile }) {
@@ -315,6 +339,10 @@ export function PreviewPanel({ components, profile }) {
         return <UIHero key={c.id} c={c} />
       case 'Section':
         return <UISection key={c.id} c={c} />
+      case 'VisualClone':
+        return <UIVisualClone key={c.id} c={c} />
+      case 'SemanticNode':
+        return <UISemanticNode key={c.id} />
       default:
         return (
           <UIButton
@@ -358,7 +386,9 @@ export function PreviewPanel({ components, profile }) {
                   c.type === 'Divider' ? 2   :
                   c.type === 'Nav'     ? 56  :
                   c.type === 'Hero'    ? 100 :
-                  c.type === 'Section' ? 80  : 28
+                  c.type === 'Section' ? 80  :
+                  c.type === 'VisualClone' ? c.height :
+                  c.type === 'SemanticNode' ? c.height : 28
                 ),
               }}
             >
@@ -368,9 +398,17 @@ export function PreviewPanel({ components, profile }) {
 
           {sorted.length === 0 && (
             <div className="preview-empty">
-              <div className="preview-empty-icon">✏️</div>
-              <p className="preview-empty-title">Draw on the canvas</p>
-              <p className="preview-empty-sub">Components appear here as you sketch</p>
+              <div className="preview-empty-glyph">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="10" width="36" height="28" rx="6" fill="#e0e7ff" stroke="#818cf8" strokeWidth="1.5"/>
+                  <rect x="11" y="16" width="16" height="3" rx="1.5" fill="#818cf8" opacity=".6"/>
+                  <rect x="11" y="22" width="26" height="2" rx="1" fill="#c7d2fe"/>
+                  <rect x="11" y="27" width="20" height="2" rx="1" fill="#c7d2fe"/>
+                  <rect x="11" y="32" width="10" height="4" rx="2" fill="#6366f1"/>
+                </svg>
+              </div>
+              <p className="preview-empty-title">Your UI preview will appear here</p>
+              <p className="preview-empty-sub">Draw shapes, pick a template, or drag components to get started</p>
             </div>
           )}
         </div>

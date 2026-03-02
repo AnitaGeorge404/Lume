@@ -16,6 +16,11 @@ import {
   enhanceReconstructedComponents,
   renderComparisonPreviewSvg,
 } from './lib/screenshotEnhancer'
+import {
+  buildSemanticCandidates,
+  buildSemanticLayerComponents,
+  buildVisualCloneComponent,
+} from './lib/visualClone'
 import { extractUIBlocks, detectFramework }      from './lib/codeParser'
 import {
   enhanceFromCodeBlocks,
@@ -307,11 +312,11 @@ export default function App() {
   }, [activeSketch, overlapTarget])
 
   const enhancedSvg = useMemo(() => {
-    if (!screenshotState?.proposedComponents?.length) return ''
-    return renderComparisonPreviewSvg(screenshotState.proposedComponents)
+    if (!screenshotState?.scaffoldPreview?.length) return ''
+    return renderComparisonPreviewSvg(screenshotState.scaffoldPreview)
   }, [screenshotState])
 
-  const enhancedPreviewDataUrl = useMemo(() => {
+  const scaffoldPreviewDataUrl = useMemo(() => {
     if (!enhancedSvg) return ''
     return `data:image/svg+xml;utf8,${encodeURIComponent(enhancedSvg)}`
   }, [enhancedSvg])
@@ -421,6 +426,14 @@ export default function App() {
       if (!dataUrl) return
       try {
         const meta = await estimateImageMetaFromDataUrl(dataUrl, file)
+        const fullMeta = {
+          ...meta,
+          dataUrl,
+          fileName: file.name,
+          fileSize: file.size,
+        }
+        const cloneComponent = buildVisualCloneComponent(fullMeta)
+        const semanticCandidates = buildSemanticCandidates(fullMeta)
         setScreenshotState({
           fileName: file.name,
           dataUrl,
@@ -432,9 +445,17 @@ export default function App() {
           dominantDark: meta.dominantDark,
           keepReference: false,
           showReference: false,
+          sideBySide: false,
+          phase: 'clone',
           analysis: null,
-          proposedComponents: [],
-          status: 'uploaded',
+          semanticCandidates,
+          selectedSemanticId: semanticCandidates[0]?.id ?? null,
+          cloneZoom: 1,
+          clonePanX: 0,
+          clonePanY: 0,
+          cloneComponent,
+          proposedComponents: [cloneComponent],
+          status: 'cloned',
         })
       } catch {
         setScreenshotState(null)
@@ -445,21 +466,35 @@ export default function App() {
 
   const handleScreenshotAnalyze = () => {
     if (!screenshotState) return
-    const analysis = analyzeScreenshotMeta(screenshotState)
-    const reconstructed = reconstructFromScreenshotAnalysis(analysis)
-    const polished = enhanceReconstructedComponents(reconstructed)
-
-    setScreenshotState(prev => ({
-      ...prev,
-      analysis,
-      proposedComponents: polished,
-      status: 'enhanced',
-    }))
+    setScreenshotState(prev => {
+      if (!prev) return prev
+      if (prev.phase === 'lift') {
+        return { ...prev, phase: 'clone' }
+      }
+      const analysis = analyzeScreenshotMeta(prev)
+      const reconstructed = reconstructFromScreenshotAnalysis(analysis)
+      const polished = enhanceReconstructedComponents(reconstructed)
+      const candidates = prev.semanticCandidates?.length
+        ? prev.semanticCandidates
+        : buildSemanticCandidates(prev)
+      return {
+        ...prev,
+        phase: 'lift',
+        analysis,
+        semanticCandidates: candidates,
+        selectedSemanticId: candidates[0]?.id ?? null,
+        status: 'lift-ready',
+        // keep phase 1 visual clone as default render source
+        proposedComponents: [prev.cloneComponent],
+        scaffoldPreview: polished,
+      }
+    })
   }
 
   const handleScreenshotApply = () => {
-    if (!screenshotState?.proposedComponents?.length) return
-    const accepted = screenshotState.proposedComponents
+    if (!screenshotState?.cloneComponent) return
+    const semanticLayer = buildSemanticLayerComponents(screenshotState.semanticCandidates ?? [])
+    const accepted = [screenshotState.cloneComponent, ...semanticLayer]
     if (!accepted.length) return
 
     setTemplateComponents(accepted)
@@ -478,7 +513,50 @@ export default function App() {
     })
   }
 
+  const handleSemanticSelect = (candidateId) => {
+    setScreenshotState(prev => prev
+      ? { ...prev, selectedSemanticId: candidateId }
+      : prev)
+  }
+
+  const handleSemanticRoleChange = (candidateId, nextRole) => {
+    setScreenshotState(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        semanticCandidates: (prev.semanticCandidates ?? []).map(candidate =>
+          candidate.id === candidateId
+            ? { ...candidate, chosenRole: nextRole }
+            : candidate,
+        ),
+      }
+    })
+  }
+
   const handleScreenshotDiscard = () => setScreenshotState(null)
+
+  const handleCloneZoom = (nextZoom) => {
+    setScreenshotState(prev => prev
+      ? { ...prev, cloneZoom: clamp(nextZoom, 0.5, 3) }
+      : prev)
+  }
+
+  const handleClonePan = (dx, dy) => {
+    setScreenshotState(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        clonePanX: clamp((prev.clonePanX ?? 0) + dx, -320, 320),
+        clonePanY: clamp((prev.clonePanY ?? 0) + dy, -240, 240),
+      }
+    })
+  }
+
+  const resetCloneViewport = () => {
+    setScreenshotState(prev => prev
+      ? { ...prev, cloneZoom: 1, clonePanX: 0, clonePanY: 0 }
+      : prev)
+  }
 
   // ── Code pipeline handlers ────────────────────────────────────────────────
   const handleCodeChange = (rawCode) => {
@@ -732,56 +810,147 @@ export default function App() {
           <div className="canvas-area">
             {screenshotState?.dataUrl && (
               <aside className="screenshot-workbench">
-              <div className="ss-head">
-                <p className="ss-title">Polished UI Rebuild</p>
-                <span className="ss-step">{screenshotState.status === 'enhanced' ? 'Enhanced screen ready' : 'Reference loaded'}</span>
-              </div>
-
-              <div className="ss-preview-stack">
-                <div className="ss-pane polished">
-                  <div className="ss-pane-headline">Enhanced UI Preview</div>
-                  <div className="ss-preview-frame polished">
-                    {enhancedPreviewDataUrl ? (
-                      <img src={enhancedPreviewDataUrl} alt="Enhanced polished UI preview" />
-                    ) : (
-                      <div className="ss-preview-empty">Analyze to generate a polished rebuilt screen</div>
-                    )}
-                  </div>
+                <div className="ss-head">
+                  <p className="ss-title">Visual Clone Pipeline</p>
+                  <span className="ss-step">
+                    {screenshotState.phase === 'lift' ? 'Phase 2 · Semantic Lift (Optional)' : 'Phase 1 · Visual Clone (Default)'}
+                  </span>
                 </div>
 
-                {screenshotState.showReference && (
-                  <div className="ss-pane reference">
-                    <div className="ss-pane-headline">Original Screenshot</div>
-                    <div className="ss-preview-frame reference">
-                      <img
-                        src={screenshotState.dataUrl}
-                        alt="Uploaded UI reference"
-                      />
+                <div className={`ss-preview-stack ${screenshotState.sideBySide ? 'compare' : ''}`}>
+                  <div className="ss-pane polished">
+                    <div className="ss-pane-headline">Cloned UI (Default)</div>
+                    <div className="ss-preview-frame polished">
+                      <div
+                        className="ss-clone-stage"
+                        style={{
+                          transform: `translate(${screenshotState.clonePanX ?? 0}px, ${screenshotState.clonePanY ?? 0}px) scale(${screenshotState.cloneZoom ?? 1})`,
+                          transformOrigin: 'center center',
+                        }}
+                      >
+                        <img
+                          src={screenshotState.dataUrl}
+                          alt="Pixel-accurate cloned UI"
+                        />
+                        {screenshotState.phase === 'lift' && (screenshotState.semanticCandidates ?? []).slice(0, 20).map(candidate => (
+                          <button
+                            key={candidate.id}
+                            className={`ss-hitbox ${screenshotState.selectedSemanticId === candidate.id ? 'active' : ''}`}
+                            style={{
+                              left: `${(candidate.x / 760) * 100}%`,
+                              top: `${(candidate.y / 480) * 100}%`,
+                              width: `${(candidate.width / 760) * 100}%`,
+                              height: `${(candidate.height / 480) * 100}%`,
+                            }}
+                            onClick={() => handleSemanticSelect(candidate.id)}
+                            title={candidate.inferredLabel}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
 
-              <div className="ss-foot">
-                <label className="ss-keep-ref">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(screenshotState.keepReference)}
-                    onChange={event => setScreenshotState(prev => prev ? { ...prev, keepReference: event.target.checked } : prev)}
-                  />
-                  Keep screenshot reference after apply
-                </label>
-                <div className="ss-foot-actions">
-                  <button
-                    className="ss-action ghost"
-                    onClick={() => setScreenshotState(prev => prev ? { ...prev, showReference: !prev.showReference } : prev)}
-                  >
-                    {screenshotState.showReference ? 'Hide Original' : 'View Original'}
-                  </button>
-                  <button className="ss-action ghost" onClick={handleScreenshotAnalyze}>Analyze + Enhance</button>
-                  <button className="ss-action" onClick={handleScreenshotApply} disabled={!screenshotState.proposedComponents.length}>Use Enhanced UI</button>
+                  {(screenshotState.showReference || screenshotState.sideBySide) && (
+                    <div className="ss-pane reference">
+                      <div className="ss-pane-headline">Original Screenshot</div>
+                      <div className="ss-preview-frame reference">
+                        <img src={screenshotState.dataUrl} alt="Uploaded UI reference" />
+                      </div>
+                    </div>
+                  )}
+
+                  {screenshotState.phase === 'lift' && scaffoldPreviewDataUrl && (
+                    <div className="ss-pane semantic">
+                      <div className="ss-pane-headline">Semantic Scaffolding (non-visual)</div>
+                      <div className="ss-preview-frame semantic">
+                        <img src={scaffoldPreviewDataUrl} alt="Semantic candidate scaffolding preview" />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+
+                {screenshotState.phase === 'lift' && screenshotState.semanticCandidates?.length > 0 && (
+                  <div className="ss-semantic-list">
+                    {screenshotState.semanticCandidates.slice(0, 8).map(candidate => (
+                      <div
+                        key={candidate.id}
+                        className={`ss-sem-row ${screenshotState.selectedSemanticId === candidate.id ? 'active' : ''}`}
+                        onClick={() => handleSemanticSelect(candidate.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            handleSemanticSelect(candidate.id)
+                          }
+                        }}
+                      >
+                        <div className="ss-sem-copy">
+                          <strong>{candidate.inferredLabel}</strong>
+                          <span>{candidate.inferredType}</span>
+                        </div>
+                        <select
+                          className="ss-sem-select"
+                          value={candidate.chosenRole}
+                          onChange={(event) => handleSemanticRoleChange(candidate.id, event.target.value)}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {candidate.roleOptions.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="ss-foot">
+                  <label className="ss-keep-ref">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(screenshotState.keepReference)}
+                      onChange={event => setScreenshotState(prev => prev ? { ...prev, keepReference: event.target.checked } : prev)}
+                    />
+                    Keep screenshot reference after apply
+                  </label>
+                  <div className="ss-viewport-controls">
+                    <button className="ss-action ghost" onClick={() => handleCloneZoom((screenshotState.cloneZoom ?? 1) - 0.1)}>−</button>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.05"
+                      value={screenshotState.cloneZoom ?? 1}
+                      onChange={(event) => handleCloneZoom(Number(event.target.value))}
+                    />
+                    <button className="ss-action ghost" onClick={() => handleCloneZoom((screenshotState.cloneZoom ?? 1) + 0.1)}>+</button>
+                    <button className="ss-action ghost" onClick={() => handleClonePan(-18, 0)}>←</button>
+                    <button className="ss-action ghost" onClick={() => handleClonePan(18, 0)}>→</button>
+                    <button className="ss-action ghost" onClick={() => handleClonePan(0, -14)}>↑</button>
+                    <button className="ss-action ghost" onClick={() => handleClonePan(0, 14)}>↓</button>
+                    <button className="ss-action ghost" onClick={resetCloneViewport}>Reset</button>
+                  </div>
+                  <div className="ss-foot-actions">
+                    <button
+                      className="ss-action ghost"
+                      onClick={() => setScreenshotState(prev => prev ? { ...prev, showReference: !prev.showReference, sideBySide: false } : prev)}
+                    >
+                      {screenshotState.showReference ? 'Hide Original' : 'View Original'}
+                    </button>
+                    <button
+                      className="ss-action ghost"
+                      onClick={() => setScreenshotState(prev => prev ? { ...prev, sideBySide: !prev.sideBySide, showReference: prev.sideBySide ? prev.showReference : true } : prev)}
+                    >
+                      {screenshotState.sideBySide ? 'Single View' : 'Side-by-side Compare'}
+                    </button>
+                    <button className="ss-action ghost" onClick={handleScreenshotAnalyze}>
+                      {screenshotState.phase === 'lift' ? 'Back to Visual Clone' : 'Enter Semantic Lift'}
+                    </button>
+                    <button className="ss-action" onClick={handleScreenshotApply} disabled={!screenshotState.proposedComponents.length}>
+                      Apply Cloned UI
+                    </button>
+                  </div>
+                </div>
               </aside>
             )}
 

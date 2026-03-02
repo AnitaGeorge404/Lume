@@ -16,6 +16,8 @@ export function defaultsForType(type, index) {
   if (type === 'Nav')     return { brand: 'MyApp', links: ['Home', 'Features', 'Pricing', 'Docs'] }
   if (type === 'Hero')    return { headline: 'Build Amazing UIs', subhead: 'Fast. Flexible. Beautiful.', cta: 'Get Started' }
   if (type === 'Section') return { heading: 'Features', body: 'Describe what makes this section special.' }
+  if (type === 'VisualClone') return { imageUrl: '', fit: 'contain' }
+  if (type === 'SemanticNode') return { role: 'Static container', htmlTag: 'div', label: 'Element' }
   return { label: `Button ${i}` }
 }
 
@@ -29,6 +31,8 @@ const TYPE_STYLES = {
   Nav:     { fill: '#1e293b', text: '#f8fafc', border: '#334155', radius: 0, shadow: true },
   Hero:    { fill: '#6d28d9', text: '#ffffff', border: '#7c3aed', radius: 0, shadow: true },
   Section: { fill: '#f0fdfa', text: '#134e4a', border: '#99f6e4', radius: 12, shadow: false },
+  VisualClone: { fill: 'transparent', text: '#0f172a', border: 'transparent', radius: 0, shadow: false },
+  SemanticNode: { fill: 'transparent', text: 'transparent', border: 'transparent', radius: 0, shadow: false },
 }
 
 function inferShapeFamily(object) {

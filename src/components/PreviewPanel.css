@@ -193,10 +193,9 @@
   user-select: none;
 }
 
-.preview-empty-icon {
-  font-size: 36px;
-  opacity: .4;
-  margin-bottom: 4px;
+.preview-empty-glyph {
+  margin-bottom: 6px;
+  opacity: .7;
 }
 
 .preview-empty-title {

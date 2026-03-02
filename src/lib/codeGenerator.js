@@ -218,6 +218,62 @@ function ${prettyName(c)}() {
 }`.trim()
 }
 
+  function genVisualClone(c) {
+    return `
+  // ─── Visual Clone ────────────────────────────────────────────────────────────
+  function ${prettyName(c)}() {
+    return (
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+        <img
+          src="${c.props.imageUrl}"
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: '${c.props.fit || 'contain'}', display: 'block' }}
+        />
+      </div>
+    )
+  }`.trim()
+  }
+
+  function genSemanticNode(c) {
+    const tag = (c.props.htmlTag || 'div').toLowerCase()
+    const aria = c.props.label ? ` aria-label="${String(c.props.label).replace(/"/g, '&quot;')}"` : ''
+
+    if (tag === 'input') {
+      return `
+  // ─── Semantic Lift Node ──────────────────────────────────────────────────────
+  function ${prettyName(c)}() {
+    return (
+      <input${aria}
+        style={{ width: '100%', height: '100%', opacity: 0, border: 'none', background: 'transparent' }}
+      />
+    )
+  }`.trim()
+    }
+
+    if (tag === 'button') {
+      return `
+  // ─── Semantic Lift Node ──────────────────────────────────────────────────────
+  function ${prettyName(c)}() {
+    return (
+      <button${aria}
+        style={{ width: '100%', height: '100%', opacity: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+        onClick={() => {}}
+      />
+    )
+  }`.trim()
+    }
+
+    return `
+  // ─── Semantic Lift Node ──────────────────────────────────────────────────────
+  function ${prettyName(c)}() {
+    return (
+      <${tag}${aria}
+        style={{ width: '100%', height: '100%', opacity: 0, border: 'none', background: 'transparent' }}
+      />
+    )
+  }`.trim()
+  }
+
 function genComponent(c) {
   if (c.type === 'Card')    return genCard(c)
   if (c.type === 'Slider')  return genSlider(c)
@@ -227,6 +283,8 @@ function genComponent(c) {
   if (c.type === 'Nav')     return genNav(c)
   if (c.type === 'Hero')    return genHero(c)
   if (c.type === 'Section') return genSection(c)
+  if (c.type === 'VisualClone') return genVisualClone(c)
+  if (c.type === 'SemanticNode') return genSemanticNode(c)
   return genButton(c)
 }
 
@@ -261,6 +319,8 @@ export function generateReactCode(components, profile, options = {}) {
                : c.type === 'Nav'     ? Math.max(c.height, 56)
                : c.type === 'Hero'    ? Math.max(c.height, 100)
                : c.type === 'Section' ? Math.max(c.height, 80)
+               : c.type === 'VisualClone' ? c.height
+               : c.type === 'SemanticNode' ? c.height
                : c.height
     return `    { id: '${c.id}', x: ${c.x}, y: ${c.y}, w: ${c.width}, h: ${minH}, Component: ${name} },`
   }).join('\n')
@@ -411,6 +471,20 @@ function genHTMLComponent(c) {
   if (c.type === 'Section') {
     return `<section style="${htmlStyleAttr({ ...base, padding: '24px 28px' })}"><h2 style="margin:0 0 8px;font-size:18px;font-weight:700">${c.props.heading || 'Section'}</h2><p style="margin:0;font-size:14px;opacity:.75;line-height:1.6">${c.props.body || ''}</p></section>`
   }
+  if (c.type === 'VisualClone') {
+    return `<div style="width:100%;height:100%;overflow:hidden"><img src="${c.props.imageUrl || ''}" alt="" style="width:100%;height:100%;object-fit:${c.props.fit || 'contain'};display:block" /></div>`
+  }
+  if (c.type === 'SemanticNode') {
+    const tag = (c.props.htmlTag || 'div').toLowerCase()
+    const aria = c.props.label ? ` aria-label="${String(c.props.label).replace(/"/g, '&quot;')}"` : ''
+    if (tag === 'input') {
+      return `<input${aria} style="width:100%;height:100%;opacity:0;border:none;background:transparent" />`
+    }
+    if (tag === 'button') {
+      return `<button${aria} style="width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer"></button>`
+    }
+    return `<${tag}${aria} style="width:100%;height:100%;opacity:0;border:none;background:transparent"></${tag}>`
+  }
   // Slider — basic HTML range
   return `<div style="${htmlStyleAttr({ ...base, padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: '4px' })}"><label style="font-size:12px;font-weight:600">${c.props.label || 'Range'}</label><input type="range" min="${c.props.min ?? 0}" max="${c.props.max ?? 100}" value="${c.props.value ?? 50}" style="width:100%;accent-color:${c.style.border}" /></div>`
 }
@@ -441,6 +515,8 @@ export function generateHTMLCode(components, profile, options = {}) {
                : c.type === 'Nav'     ? Math.max(c.height, 56)
                : c.type === 'Hero'    ? Math.max(c.height, 100)
                : c.type === 'Section' ? Math.max(c.height, 80)
+               : c.type === 'VisualClone' ? c.height
+               : c.type === 'SemanticNode' ? c.height
                : c.height
     const inner = genHTMLComponent(c)
     return `    <div style="position:absolute;left:${c.x}px;top:${c.y}px;width:${c.width}px;height:${minH}px">\n      ${inner}\n    </div>`

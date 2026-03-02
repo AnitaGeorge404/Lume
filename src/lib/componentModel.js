@@ -25,7 +25,7 @@
  * }
  */
 
-export const COMPONENT_TYPES = ['Button', 'Card', 'Slider', 'Input', 'Badge', 'Divider', 'Nav', 'Hero', 'Section']
+export const COMPONENT_TYPES = ['Button', 'Card', 'Slider', 'Input', 'Badge', 'Divider', 'Nav', 'Hero', 'Section', 'VisualClone', 'SemanticNode']
 
 /**
  * Accent colors used across the UI for visual distinction between component types.
@@ -41,6 +41,8 @@ export const TYPE_ACCENT = {
   Nav:     '#1e293b',
   Hero:    '#7c3aed',
   Section: '#0f766e',
+  VisualClone: '#64748b',
+  SemanticNode: '#9ca3af',
 }
 
 /** Emoji icons for each component type */
@@ -54,6 +56,8 @@ export const TYPE_EMOJI = {
   Nav:     '🧭',
   Hero:    '🦸',
   Section: '📦',
+  VisualClone: '🖼️',
+  SemanticNode: '◌',
 }
 
 /**
