@@ -3,7 +3,26 @@ import { getAnimProfile } from '../lib/semantics'
 import './PreviewPanel.css'
 
 const CANVAS_W = 760
-const CANVAS_H = 480
+
+const DEVICE_PRESETS = [
+  { id: 'desktop', label: 'Desktop', w: 1440, h: 900 },
+  { id: 'laptop',  label: 'Laptop',  w: 1280, h: 800 },
+  { id: 'tablet',  label: 'Tablet',  w: 768,  h: 1024 },
+  { id: 'mobile',  label: 'Mobile',  w: 375,  h: 812 },
+]
+
+function minComponentH(type) {
+  switch (type) {
+    case 'Button':  return 40
+    case 'Slider':  return 60
+    case 'Input':   return 36
+    case 'Divider': return 2
+    case 'Nav':     return 56
+    case 'Hero':    return 100
+    case 'Section': return 80
+    default:        return 28
+  }
+}
 
 // ─── Base widget box style ─────────────────────────────────────────────────────
 
@@ -287,27 +306,51 @@ function UISemanticNode() {
 
 
 export function PreviewPanel({ components, profile }) {
-  const outerRef = useRef(null)
-  const [scale, setScale]             = useState(1)
+  const rootRef = useRef(null)
+  const [containerW, setContainerW] = useState(600)
+  const [deviceId, setDeviceId] = useState('desktop')
+  const [customW, setCustomW] = useState(1024)
+  const [customH, setCustomH] = useState(768)
   const [buttonClicks, setButtonClicks] = useState({})
   const [sliderValues, setSliderValues] = useState({})
   const [inputValues,  setInputValues]  = useState({})
 
-  // Scale the 760×480 viewport to always fit the container
+  const isCustom = deviceId === 'custom'
+  const preset = DEVICE_PRESETS.find(d => d.id === deviceId)
+  const virtualW = isCustom ? customW : (preset?.w ?? 1440)
+  const virtualH = isCustom ? customH : (preset?.h ?? 900)
+
+  // Measure available container width
   useEffect(() => {
-    const el = outerRef.current
+    const el = rootRef.current
     if (!el) return
-    const obs = new ResizeObserver(([{ contentRect }]) => {
-      setScale(Math.min(1, (contentRect.width - 4) / CANVAS_W))
-    })
+    const obs = new ResizeObserver(([{ contentRect }]) => setContainerW(contentRect.width))
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
+
+  /* ── Viewport math ─────────────────────────────────────── */
+  const frameW = Math.min(containerW, virtualW)
+  const displayScale = frameW / virtualW
+  const frameH = Math.round(virtualH * displayScale)
+  const scale = frameW / CANVAS_W
 
   const sorted = useMemo(
     () => [...components].sort((a, b) => a.y - b.y || a.x - b.x),
     [components],
   )
+
+  const contentBottom = useMemo(() => {
+    if (!components.length) return 0
+    return Math.max(0, ...components.map(c =>
+      c.y + Math.max(c.height, minComponentH(c.type))
+    ))
+  }, [components])
+
+  /* Board must fill at least the full device viewport */
+  const minBoardH = Math.ceil(virtualH * CANVAS_W / virtualW)
+  const boardH = Math.max(contentBottom, minBoardH)
+  const boardDisplayH = Math.ceil(boardH * scale)
 
   function renderWidget(c) {
     switch (c.type) {
@@ -354,63 +397,100 @@ export function PreviewPanel({ components, profile }) {
     }
   }
 
-  const bgColor = profile?.bg ?? '#f4f7fb'
+  const bgColor = profile?.bg ?? '#12151e'
 
   return (
-    <div className="preview-outer" ref={outerRef}>
-      <div className="preview-scaler" style={{ height: CANVAS_H * scale }}>
-        <div
-          className="preview-board"
-          style={{
-            width: CANVAS_W,
-            height: CANVAS_H,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            background: bgColor,
-          }}
-        >
-          {sorted.map(c => (
-            <div
-              key={c.id}
-              className="preview-frame"
-              style={{
-                position: 'absolute',
-                left:   c.x,
-                top:    c.y,
-                width:  c.width,
-                height: Math.max(
-                  c.height,
-                  c.type === 'Button'  ? 40  :
-                  c.type === 'Slider'  ? 60  :
-                  c.type === 'Input'   ? 36  :
-                  c.type === 'Divider' ? 2   :
-                  c.type === 'Nav'     ? 56  :
-                  c.type === 'Hero'    ? 100 :
-                  c.type === 'Section' ? 80  :
-                  c.type === 'VisualClone' ? c.height :
-                  c.type === 'SemanticNode' ? c.height : 28
-                ),
-              }}
+    <div className="pv-root" ref={rootRef}>
+      {/* ── Device size selector ──────────────────────────── */}
+      <div className="pv-device-bar">
+        <div className="pv-device-buttons">
+          {DEVICE_PRESETS.map(d => (
+            <button
+              key={d.id}
+              className={`pv-device-btn ${deviceId === d.id ? 'active' : ''}`}
+              onClick={() => setDeviceId(d.id)}
             >
-              {renderWidget(c)}
-            </div>
+              {d.label}
+            </button>
           ))}
-
-          {sorted.length === 0 && (
-            <div className="preview-empty">
-              <div className="preview-empty-glyph">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <rect x="6" y="10" width="36" height="28" rx="6" fill="#e0e7ff" stroke="#818cf8" strokeWidth="1.5"/>
-                  <rect x="11" y="16" width="16" height="3" rx="1.5" fill="#818cf8" opacity=".6"/>
-                  <rect x="11" y="22" width="26" height="2" rx="1" fill="#c7d2fe"/>
-                  <rect x="11" y="27" width="20" height="2" rx="1" fill="#c7d2fe"/>
-                  <rect x="11" y="32" width="10" height="4" rx="2" fill="#6366f1"/>
-                </svg>
-              </div>
-              <p className="preview-empty-title">Your UI preview will appear here</p>
-              <p className="preview-empty-sub">Draw shapes, pick a template, or drag components to get started</p>
-            </div>
+          <button
+            className={`pv-device-btn ${isCustom ? 'active' : ''}`}
+            onClick={() => setDeviceId('custom')}
+          >
+            Custom
+          </button>
+        </div>
+        <div className="pv-device-info">
+          {isCustom ? (
+            <span className="pv-custom-size">
+              <input
+                type="number"
+                className="pv-size-input"
+                value={customW}
+                onChange={e => setCustomW(Math.max(320, Math.min(2560, +e.target.value || 320)))}
+              />
+              <span className="pv-size-x">×</span>
+              <input
+                type="number"
+                className="pv-size-input"
+                value={customH}
+                onChange={e => setCustomH(Math.max(320, Math.min(2560, +e.target.value || 320)))}
+              />
+            </span>
+          ) : (
+            <span className="pv-dims">{virtualW} × {virtualH}</span>
           )}
+        </div>
+      </div>
+
+      {/* ── Device viewport frame ─────────────────────────── */}
+      <div
+        className="pv-device-frame"
+        style={{ width: frameW, maxHeight: frameH }}
+      >
+        <div className="pv-board-sizer" style={{ height: boardDisplayH }}>
+          <div
+            className="pv-board"
+            style={{
+              width: CANVAS_W,
+              height: boardH,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+              background: bgColor,
+            }}
+          >
+            {sorted.map(c => (
+              <div
+                key={c.id}
+                className="preview-frame"
+                style={{
+                  position: 'absolute',
+                  left: c.x,
+                  top: c.y,
+                  width: c.width,
+                  height: Math.max(c.height, minComponentH(c.type)),
+                }}
+              >
+                {renderWidget(c)}
+              </div>
+            ))}
+
+            {sorted.length === 0 && (
+              <div className="preview-empty">
+                <div className="preview-empty-glyph">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect x="6" y="10" width="36" height="28" rx="6" fill="#1e2236" stroke="#6366f1" strokeWidth="1.5" opacity=".6"/>
+                    <rect x="11" y="16" width="16" height="3" rx="1.5" fill="#6366f1" opacity=".4"/>
+                    <rect x="11" y="22" width="26" height="2" rx="1" fill="#334155"/>
+                    <rect x="11" y="27" width="20" height="2" rx="1" fill="#334155"/>
+                    <rect x="11" y="32" width="10" height="4" rx="2" fill="#6366f1"/>
+                  </svg>
+                </div>
+                <p className="preview-empty-title">Your UI preview will appear here</p>
+                <p className="preview-empty-sub">Draw shapes, pick a template, or drag components to get started</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

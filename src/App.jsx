@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import './App.css'
 import { DrawingCanvas }   from './components/DrawingCanvas'
 import { LeftPanel }       from './components/LeftPanel'
@@ -263,6 +264,8 @@ export default function App() {
   const [codeSubTab,     setCodeSubTab]    = useState('combined')
   const [copyState,      setCopyState]     = useState('')
   const [memoryVersion,  setMemoryVersion] = useState(0)
+  const [sidebarOpen,    setSidebarOpen]   = useState(false)
+  const [rightPanelOpen, setRightPanelOpen] = useState(false)
 
   // ── Memory ────────────────────────────────────────────────────────────────────
   const memory = useMemo(() => loadMemory(), [appliedPrompt, memoryVersion]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -725,12 +728,11 @@ export default function App() {
   return (
     <div className="app-shell">
 
-      {/* ── Topbar ─────────────────────────────────────────────────────── */}
+      {/* ── Topbar — Minimalist Header ─────────────────────────────── */}
       <header className="topbar">
         <div className="topbar-brand">
           <span className="brand-icon">✦</span>
           <span className="brand-name">Lume</span>
-          <span className="brand-tag">UI Enhancement Platform</span>
         </div>
 
         <div className="topbar-meta">
@@ -739,6 +741,7 @@ export default function App() {
               {components.length} component{components.length !== 1 ? 's' : ''}
             </span>
           )}
+          <span className="meta-chip code-fw-chip">⟨/⟩ {frameworkTag}</span>
           {appliedPrompt && (
             <span className="meta-chip mood-chip">✨ {profile.mood}</span>
           )}
@@ -747,66 +750,144 @@ export default function App() {
               ⟨/⟩ {FRAMEWORK_DISPLAY[codeState.framework] ?? 'Code'}
             </span>
           )}
-          {appliedCodeFw && !codeState && (
-            <span className="meta-chip code-fw-chip" title="Components enhanced from code">
-              ⟨/⟩ {appliedCodeFw}
-            </span>
-          )}
           {dominantProfile && sessionCount >= 2 && (
             <span className="meta-chip memory-chip" title="Your preferred style">
               🧠 {dominantProfile}
             </span>
           )}
+          {styleTags.slice(0, 2).map(tag => (
+            <span key={tag} className="meta-chip mood-chip">✦ {tag}</span>
+          ))}
           {(templateComponents.length > 0 || draggedComponents.length > 0 || sketchObjects.length > 0) && (
             <button className="meta-chip clear-chip" onClick={handleClearAll} title="Clear canvas">
               ✕ Clear
             </button>
           )}
-
-          <div className="topbar-tabs" role="tablist" aria-label="Workspace tabs">
-            {[
-              ['preview', 'Preview'],
-              ['code', 'Code'],
-              ['ai', 'AI'],
-              ['inspector', 'Inspector'],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                className={`topbar-tab ${rightTab === id ? 'active' : ''}`}
-                onClick={() => setRightTab(id)}
-                role="tab"
-                aria-selected={rightTab === id}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 
-      {/* ── Three-panel workspace ───────────────────────────────────────── */}
+      {/* ── Floating Sidebar Toggle (Design Library) ─────────────── */}
+      <button
+        className="sidebar-toggle"
+        onClick={() => setSidebarOpen(true)}
+        title="Design Library"
+      >
+        ◧
+      </button>
+
+      {/* ── Floating Right Panel Toggle (Code / AI / Inspector) ──── */}
+      <button
+        className="right-panel-toggle"
+        onClick={() => setRightPanelOpen(true)}
+        title="Code · AI · Inspector"
+      >
+        ⟨/⟩
+      </button>
+
+      {/* ── Floating Sidebar — Left Overlay ──────────────────────── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              className="floating-sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.div
+              className="floating-sidebar"
+              initial={{ x: -380 }}
+              animate={{ x: 0 }}
+              exit={{ x: -380 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            >
+              <button className="floating-panel-close" onClick={() => setSidebarOpen(false)}>×</button>
+              <LeftPanel
+                onTemplateSelect={(id, comps) => { handleTemplateSelect(id, comps); setSidebarOpen(false); }}
+                onStyleSelect={(prompt) => { handleStyleSelect(prompt); setSidebarOpen(false); }}
+                appliedPrompt={appliedPrompt}
+                onScreenshotUpload={handleScreenshotUpload}
+                onScreenshotAnalyze={handleScreenshotAnalyze}
+                onScreenshotApply={() => { handleScreenshotApply(); setSidebarOpen(false); }}
+                onScreenshotDiscard={handleScreenshotDiscard}
+                screenshotState={screenshotState}
+                onCodeUpload={handleCodeUpload}
+                onCodeChange={handleCodeChange}
+                onCodeParse={handleCodeParse}
+                onCodeApply={() => { handleCodeApply(); setSidebarOpen(false); }}
+                onCodeDiscard={handleCodeDiscard}
+                codeState={codeState}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Floating Right Panel — Right Overlay ─────────────────── */}
+      <AnimatePresence>
+        {rightPanelOpen && (
+          <>
+            <motion.div
+              className="floating-sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setRightPanelOpen(false)}
+            />
+            <motion.div
+              className="floating-right-panel"
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            >
+              <button className="floating-panel-close" onClick={() => setRightPanelOpen(false)}>×</button>
+              <RightPanel
+                components={components}
+                profile={profile}
+                interpreted={interpreted}
+                typeOverrides={typeOverrides}
+                onOverride={handleOverride}
+                jsx={jsx}
+                css={css}
+                themeJs={themeJs}
+                combined={combined}
+                codeSubTab={codeSubTab}
+                onCodeSubTab={setCodeSubTab}
+                copyState={copyState}
+                onCopy={handleCopy}
+                onCopyJsx={handleCopyJsx}
+                onCopyCss={handleCopyCss}
+                onDownload={handleDownload}
+                draftPrompt={draftPrompt}
+                onDraftChange={setDraftPrompt}
+                onApplyPrompt={handleApplyPrompt}
+                appliedPrompt={appliedPrompt}
+                copilotHistory={copilotHistory}
+                onUndoCopilot={handleUndo}
+                onResetPrompt={handleReset}
+                changeSummary={changeSummary}
+                dominantProfile={dominantProfile}
+                sessionCount={sessionCount}
+                onClearMemory={handleClearMemory}
+                activeTab={rightTab}
+                onTabChange={setRightTab}
+                frameworkTag={frameworkTag}
+                styleTags={styleTags}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Vertical Cinematic Workspace ─────────────────────────── */}
       <main className="main-area">
-
-        {/* LEFT — Visual Options */}
-        <LeftPanel
-          onTemplateSelect={handleTemplateSelect}
-          onStyleSelect={handleStyleSelect}
-          appliedPrompt={appliedPrompt}
-          onScreenshotUpload={handleScreenshotUpload}
-          onScreenshotAnalyze={handleScreenshotAnalyze}
-          onScreenshotApply={handleScreenshotApply}
-          onScreenshotDiscard={handleScreenshotDiscard}
-          screenshotState={screenshotState}
-          onCodeUpload={handleCodeUpload}
-          onCodeChange={handleCodeChange}
-          onCodeParse={handleCodeParse}
-          onCodeApply={handleCodeApply}
-          onCodeDiscard={handleCodeDiscard}
-          codeState={codeState}
-        />
-
-        {/* CENTER — Canvas (top) + Live Preview (bottom) */}
         <section className="workspace-center">
+
+          {/* TOP PANEL — The Input Canvas (Creation Zone) */}
           <div className="canvas-area">
             {screenshotState?.dataUrl && (
               <aside className="screenshot-workbench">
@@ -1078,6 +1159,7 @@ export default function App() {
             )}
           </div>
 
+          {/* BOTTOM PANEL — The Mirror Viewport */}
           <section className="preview-stage" aria-label="Live preview">
             <div className="preview-stage-head">
               <div>
@@ -1098,41 +1180,6 @@ export default function App() {
             </div>
           </section>
         </section>
-
-        {/* RIGHT — Preview / Code / AI / Inspector */}
-        <RightPanel
-          components={components}
-          profile={profile}
-          interpreted={interpreted}
-          typeOverrides={typeOverrides}
-          onOverride={handleOverride}
-          jsx={jsx}
-          css={css}
-          themeJs={themeJs}
-          combined={combined}
-          codeSubTab={codeSubTab}
-          onCodeSubTab={setCodeSubTab}
-          copyState={copyState}
-          onCopy={handleCopy}
-          onCopyJsx={handleCopyJsx}
-          onCopyCss={handleCopyCss}
-          onDownload={handleDownload}
-          draftPrompt={draftPrompt}
-          onDraftChange={setDraftPrompt}
-          onApplyPrompt={handleApplyPrompt}
-          appliedPrompt={appliedPrompt}
-          copilotHistory={copilotHistory}
-          onUndoCopilot={handleUndo}
-          onResetPrompt={handleReset}
-          changeSummary={changeSummary}
-          dominantProfile={dominantProfile}
-          sessionCount={sessionCount}
-          onClearMemory={handleClearMemory}
-          activeTab={rightTab}
-          onTabChange={setRightTab}
-          frameworkTag={frameworkTag}
-          styleTags={styleTags}
-        />
       </main>
     </div>
   )

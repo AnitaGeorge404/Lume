@@ -1,22 +1,32 @@
+/* ── Drawing Canvas · Dark Premium ──────────────────────── */
+
 .drawing-canvas-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
+
+/* ── Tool Row ───────────────────────────────────────────── */
 
 .tool-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 2px;
+  padding: 10px 16px;
+  background: var(--lume-surface-1, #1a1d2e);
+  border-bottom: 1px solid var(--lume-border, rgba(255,255,255,0.06));
+  flex-shrink: 0;
 }
 
 .tool-row button {
-  border: 1px solid #d5e0ef;
+  border: 1px solid var(--lume-border, rgba(255,255,255,0.08));
   border-radius: 999px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
-  color: #334155;
+  background: var(--lume-surface-1, #1a1d2e);
+  color: var(--lume-text-secondary, #94a3b8);
   padding: 6px 11px;
   font-size: 11px;
   font-weight: 700;
@@ -25,32 +35,32 @@
   align-items: center;
   gap: 6px;
   transition: border-color .18s, background .18s, color .18s, transform .1s, box-shadow .18s;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  box-shadow: none;
 }
 
 .tool-row button:hover {
-  border-color: #93b5ea;
-  background: #eef4ff;
-  color: #4f46e5;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.13);
+  border-color: var(--lume-accent, #6366f1);
+  background: var(--lume-surface-2, #1e2236);
+  color: var(--lume-text-primary, #e2e8f0);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);
 }
 
 .tool-row button.active {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  border-color: #1d4ed8;
-  color: #f8fafc;
-  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.32);
+  background: linear-gradient(135deg, var(--lume-accent, #6366f1), var(--lume-neon-violet, #a78bfa));
+  border-color: var(--lume-accent, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
 }
 
 .tool-row .ghost {
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--lume-surface-0, #12151e);
+  color: var(--lume-text-muted, #475569);
 }
 
 .tool-row .ghost:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
 }
 
 .tool-icon {
@@ -62,18 +72,25 @@
   line-height: 1;
 }
 
+/* ── Canvas Element ─────────────────────────────────────── */
+
 .drawing-canvas-wrap canvas {
-  border: 1.5px solid #d8e4f4;
-  border-radius: 12px;
+  border: none;
+  border-radius: 0;
   display: block;
-  max-width: 100%;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, .11);
+  width: 100% !important;
+  height: 100% !important;
+  background: var(--lume-surface-0, #12151e);
+  box-shadow: none;
 }
 
-/* ── Canvas overlay: type labels on drawn objects ─────────────────────────── */
+/* ── Canvas overlay: type labels on drawn objects ──────── */
 
 .canvas-container {
   position: relative;
-  display: inline-block;
-  line-height: 0; /* prevents extra gap under canvas */
+  flex: 1;
+  min-height: 0;
+  width: 100% !important;
+  height: 100% !important;
+  line-height: 0;
 }

@@ -50,13 +50,13 @@ export function DrawingCanvas({ onObjectsChange }) {
     const canvas = new Canvas(canvasElRef.current, {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#1a1d2e',
       preserveObjectStacking: true,
     })
 
     canvas.freeDrawingBrush = new PencilBrush(canvas)
     canvas.freeDrawingBrush.width = 2
-    canvas.freeDrawingBrush.color = '#111827'
+    canvas.freeDrawingBrush.color = '#e2e8f0'
     fabricCanvasRef.current = canvas
 
     const emitObjects = () => {
@@ -95,8 +95,8 @@ export function DrawingCanvas({ onObjectsChange }) {
           top: point.y,
           width: 1,
           height: 1,
-          fill: 'rgba(15, 23, 42, 0.08)',
-          stroke: '#0f172a',
+          fill: 'rgba(99, 102, 241, 0.08)',
+          stroke: '#6366f1',
           strokeWidth: 2,
         })
       }
@@ -106,15 +106,15 @@ export function DrawingCanvas({ onObjectsChange }) {
           left: point.x,
           top: point.y,
           radius: 1,
-          fill: 'rgba(15, 23, 42, 0.08)',
-          stroke: '#0f172a',
+          fill: 'rgba(99, 102, 241, 0.08)',
+          stroke: '#6366f1',
           strokeWidth: 2,
         })
       }
 
       if (activeTool === 'line') {
         draftShapeRef.current = new Line([point.x, point.y, point.x, point.y], {
-          stroke: '#0f172a',
+          stroke: '#a78bfa',
           strokeWidth: 3,
         })
       }
