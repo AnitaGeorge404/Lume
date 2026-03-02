@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { TEMPLATES } from '../lib/templates'
 import { COMPONENT_TYPES, TYPE_ACCENT } from '../lib/componentModel'
 import './LeftPanel.css'
 
 const MODES = [
   { id: 'draw', icon: '✏︎', label: 'Draw' },
+  { id: 'upload', icon: '🖼', label: 'Upload' },
   { id: 'templates', icon: '◫', label: 'Templates' },
   { id: 'components', icon: '◧', label: 'Parts' },
   { id: 'styles', icon: '✦', label: 'Styles' },
@@ -279,10 +280,20 @@ function templateThumbnail(template) {
   )
 }
 
-export function LeftPanel({ onTemplateSelect, onStyleSelect, appliedPrompt }) {
+export function LeftPanel({
+  onTemplateSelect,
+  onStyleSelect,
+  appliedPrompt,
+  onScreenshotUpload,
+  onScreenshotAnalyze,
+  onScreenshotApply,
+  onScreenshotDiscard,
+  screenshotState,
+}) {
   const [mode, setMode] = useState('templates')
   const [category, setCategory] = useState('Featured')
   const [draggingType, setDraggingType] = useState(null)
+  const uploadRef = useRef(null)
 
   const visibleTemplates = useMemo(() => (
     TEMPLATES.filter(template => (TEMPLATE_CATEGORY_MAP[template.id] ?? ['All']).includes(category))
@@ -300,6 +311,8 @@ export function LeftPanel({ onTemplateSelect, onStyleSelect, appliedPrompt }) {
     const components = buildLayoutComponents(layoutId)
     onTemplateSelect(null, components)
   }
+
+  const hasScreenshot = Boolean(screenshotState?.dataUrl)
 
   return (
     <aside className="left-panel">
@@ -339,6 +352,51 @@ export function LeftPanel({ onTemplateSelect, onStyleSelect, appliedPrompt }) {
               <div className="lp-tip"><strong>Long line</strong><span>→ Slider / divider</span></div>
               <div className="lp-tip"><strong>Small circle</strong><span>→ Badge token</span></div>
             </div>
+          </section>
+        )}
+
+        {mode === 'upload' && (
+          <section className="lp-section">
+            <div className="lp-section-head">
+              <h3>Upload Screenshot</h3>
+              <span>Reference → Rebuild</span>
+            </div>
+
+            <input
+              ref={uploadRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              className="lp-upload-input"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file) return
+                onScreenshotUpload(file)
+                event.target.value = ''
+              }}
+            />
+
+            <button className="lp-upload-btn" onClick={() => uploadRef.current?.click()}>
+              🖼 Upload Screenshot
+            </button>
+
+            {hasScreenshot ? (
+              <div className="lp-upload-state">
+                <p className="lp-upload-name">{screenshotState.fileName}</p>
+                <p className="lp-upload-meta">{screenshotState.width}×{screenshotState.height}</p>
+                <p className="lp-upload-step">Step 2: Analyze + Enhance</p>
+
+                <div className="lp-upload-actions">
+                  <button className="lp-upload-action" onClick={onScreenshotAnalyze}>Analyze & Enhance</button>
+                  <button className="lp-upload-action ghost" onClick={onScreenshotApply} disabled={!screenshotState.proposedComponents?.length}>Apply Enhanced UI</button>
+                </div>
+
+                <button className="lp-upload-discard" onClick={onScreenshotDiscard}>Discard screenshot</button>
+              </div>
+            ) : (
+              <div className="lp-upload-empty">
+                <p>Add a screenshot and Lume will reconstruct it using modern, cleaner components.</p>
+              </div>
+            )}
           </section>
         )}
 

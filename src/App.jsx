@@ -7,9 +7,14 @@ import { CanvasDropZone }  from './components/CanvasDropZone'
 import { createComponentFromSketch, getSketchSuggestions, defaultsForType } from './lib/shapeInterpreter'
 import { refineComponentsWithPrompt }              from './lib/copilot'
 import { generateReactCode }                       from './lib/codeGenerator'
-import { TYPE_ACCENT }                             from './lib/componentModel'
 import { loadMemory, getDominantProfile, clearMemory } from './lib/intentEngine'
 import { cloneTemplate }                           from './lib/templates'
+import {
+  analyzeScreenshotMeta,
+  reconstructFromScreenshotAnalysis,
+  enhanceReconstructedComponents,
+  renderComparisonPreviewSvg,
+} from './lib/screenshotEnhancer'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function downloadText(filename, text) {
@@ -28,8 +33,91 @@ function intersects(a, b) {
   return !(ax2 < b.x || bx2 < a.x || ay2 < b.y || by2 < a.y)
 }
 
-function SuggestionVisual({ type }) {
-  if (type === 'keep') {
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace('#', '')
+  const value = normalized.length === 3
+    ? normalized.split('').map(v => v + v).join('')
+    : normalized
+
+  const num = Number.parseInt(value, 16)
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  }
+}
+
+function rgbToHex(r, g, b) {
+  const to = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')
+  return `#${to(r)}${to(g)}${to(b)}`
+}
+
+function darkenHex(hex, factor = 0.82) {
+  const { r, g, b } = hexToRgb(hex)
+  return rgbToHex(r * factor, g * factor, b * factor)
+}
+
+function estimateImageMetaFromDataUrl(dataUrl, file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.floor(image.width / 8))
+      canvas.height = Math.max(1, Math.floor(image.height / 8))
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve({ width: image.width, height: image.height, fileSize: file.size, avgLuma: 0.75, dominant: '#2563eb', dominantDark: '#1d4ed8' })
+        return
+      }
+
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+
+      let lumaSum = 0
+      let rSum = 0
+      let gSum = 0
+      let bSum = 0
+      let count = 0
+
+      for (let i = 0; i < data.length; i += 16) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        const a = data[i + 3]
+        if (a < 10) continue
+        lumaSum += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+        rSum += r
+        gSum += g
+        bSum += b
+        count += 1
+      }
+
+      const avgR = count ? rSum / count : 37
+      const avgG = count ? gSum / count : 99
+      const avgB = count ? bSum / count : 235
+      const dominant = rgbToHex(avgR, avgG, avgB)
+
+      resolve({
+        width: image.width,
+        height: image.height,
+        fileSize: file.size,
+        avgLuma: count ? (lumaSum / count) : 0.75,
+        dominant,
+        dominantDark: darkenHex(dominant),
+      })
+    }
+
+    image.onerror = () => reject(new Error('Failed to load image'))
+    image.src = dataUrl
+  })
+}
+
+function SuggestionVisual({ suggestion }) {
+  if (suggestion.kind === 'keep') {
     return (
       <svg viewBox="0 0 88 54" className="sg-card-svg">
         <rect x="6" y="8" width="76" height="38" rx="10" fill="#ffffff" stroke="#dbe4f0" strokeWidth="1.5" />
@@ -38,11 +126,14 @@ function SuggestionVisual({ type }) {
     )
   }
 
+  const type = suggestion.componentType
+  const symbol = suggestion.symbol ?? '✦'
+
   if (type === 'Button') {
     return (
       <svg viewBox="0 0 88 54" className="sg-card-svg">
         <rect x="10" y="14" width="68" height="26" rx="9" fill="#2563eb" />
-        <rect x="30" y="24" width="28" height="6" rx="3" fill="rgba(255,255,255,0.9)" />
+        <text x="44" y="31" textAnchor="middle" fontSize="14" fill="#ffffff" fontWeight="700">{symbol}</text>
       </svg>
     )
   }
@@ -61,7 +152,7 @@ function SuggestionVisual({ type }) {
     return (
       <svg viewBox="0 0 88 54" className="sg-card-svg">
         <rect x="8" y="15" width="72" height="24" rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-        <rect x="17" y="25" width="28" height="4" rx="2" fill="#94a3b8" opacity="0.6" />
+        <text x="20" y="30" textAnchor="start" fontSize="11" fill="#94a3b8" opacity="0.8">{symbol}</text>
       </svg>
     )
   }
@@ -80,7 +171,7 @@ function SuggestionVisual({ type }) {
     return (
       <svg viewBox="0 0 88 54" className="sg-card-svg">
         <rect x="22" y="18" width="44" height="18" rx="9" fill="#eff6ff" stroke="#93c5fd" />
-        <rect x="34" y="25" width="20" height="4" rx="2" fill="#1d4ed8" />
+        <text x="44" y="31" textAnchor="middle" fontSize="12" fill="#1d4ed8" fontWeight="700">{symbol}</text>
       </svg>
     )
   }
@@ -121,6 +212,7 @@ export default function App() {
   const [draggedComponents,  setDraggedComponents]  = useState([])
   const [drawnChoices,       setDrawnChoices]       = useState({})
   const [dismissedHints,     setDismissedHints]     = useState([])
+  const [screenshotState,    setScreenshotState]    = useState(null)
   const [canvasKey,          setCanvasKey]          = useState(0)
 
   // ── Copilot state ─────────────────────────────────────────────────────────────
@@ -142,7 +234,22 @@ export default function App() {
       .filter(sketch => drawnChoices[sketch.id]?.kind === 'component')
       .map((sketch, index) => {
         const choice = drawnChoices[sketch.id]
-        return createComponentFromSketch(sketch, choice.type, index)
+        const base = createComponentFromSketch(sketch, choice.componentType, index)
+
+        const nextWidth = choice.widthScale
+          ? clamp(Math.round(base.width * choice.widthScale), 50, 360)
+          : base.width
+        const nextHeight = choice.heightScale
+          ? clamp(Math.round(base.height * choice.heightScale), 20, 240)
+          : base.height
+
+        return {
+          ...base,
+          width: nextWidth,
+          height: nextHeight,
+          style: { ...base.style, ...(choice.stylePatch ?? {}) },
+          props: { ...base.props, ...(choice.propsPatch ?? {}) },
+        }
       })
 
     return chosen
@@ -166,6 +273,28 @@ export default function App() {
     return getSketchSuggestions(activeSketch, { overlapsComponent: Boolean(overlapTarget) })
   }, [activeSketch, overlapTarget])
 
+  const enhancedSvg = useMemo(() => {
+    if (!screenshotState?.proposedComponents?.length) return ''
+    return renderComparisonPreviewSvg(screenshotState.proposedComponents)
+  }, [screenshotState])
+
+  const enhancedPreviewDataUrl = useMemo(() => {
+    if (!enhancedSvg) return ''
+    return `data:image/svg+xml;utf8,${encodeURIComponent(enhancedSvg)}`
+  }, [enhancedSvg])
+
+  const groupedSuggestions = useMemo(() => {
+    const order = ['shape', 'ui', 'decor', 'meaning', 'drawing']
+    const grouped = order
+      .map(category => ({
+        category,
+        items: activeSuggestions.filter(item => item.category === category),
+      }))
+      .filter(group => group.items.length > 0)
+
+    return grouped
+  }, [activeSuggestions])
+
   // ── 1. Merge all component sources ───────────────────────────────────────────
   const interpreted = useMemo(() => {
     const all = [...templateComponents, ...draggedComponents, ...chosenDrawnComponents]
@@ -186,15 +315,6 @@ export default function App() {
   const { jsx, css, themeJs, combined } = useMemo(
     () => generateReactCode(components, profile),
     [components, profile],
-  )
-
-  // ── 4. Canvas overlays ────────────────────────────────────────────────────────
-  const componentOverlays = useMemo(
-    () => interpreted.map(c => ({
-      id: c.id, x: c.x, y: c.y, width: c.width, height: c.height,
-      type: c.type, color: TYPE_ACCENT[c.type] ?? '#6366f1',
-    })),
-    [interpreted],
   )
 
   // ── Canvas handlers ───────────────────────────────────────────────────────────
@@ -231,9 +351,77 @@ export default function App() {
     setDraggedComponents([])
     setDrawnChoices({})
     setDismissedHints([])
+    setScreenshotState(null)
     setTypeOverrides({})
     setCanvasKey(k => k + 1)
   }
+
+  const handleScreenshotUpload = async (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = String(reader.result ?? '')
+      if (!dataUrl) return
+      try {
+        const meta = await estimateImageMetaFromDataUrl(dataUrl, file)
+        setScreenshotState({
+          fileName: file.name,
+          dataUrl,
+          width: meta.width,
+          height: meta.height,
+          fileSize: file.size,
+          avgLuma: meta.avgLuma,
+          dominant: meta.dominant,
+          dominantDark: meta.dominantDark,
+          keepReference: false,
+          showReference: false,
+          analysis: null,
+          proposedComponents: [],
+          status: 'uploaded',
+        })
+      } catch {
+        setScreenshotState(null)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleScreenshotAnalyze = () => {
+    if (!screenshotState) return
+    const analysis = analyzeScreenshotMeta(screenshotState)
+    const reconstructed = reconstructFromScreenshotAnalysis(analysis)
+    const polished = enhanceReconstructedComponents(reconstructed)
+
+    setScreenshotState(prev => ({
+      ...prev,
+      analysis,
+      proposedComponents: polished,
+      status: 'enhanced',
+    }))
+  }
+
+  const handleScreenshotApply = () => {
+    if (!screenshotState?.proposedComponents?.length) return
+    const accepted = screenshotState.proposedComponents
+    if (!accepted.length) return
+
+    setTemplateComponents(accepted)
+    setDraggedComponents([])
+    setSketchObjects([])
+    setDrawnChoices({})
+    setDismissedHints([])
+    setCanvasKey(k => k + 1)
+
+    setScreenshotState(prev => {
+      if (!prev) return prev
+      if (prev.keepReference) {
+        return { ...prev, status: 'applied' }
+      }
+      return null
+    })
+  }
+
+  const handleScreenshotDiscard = () => setScreenshotState(null)
 
   const applySuggestion = (suggestion) => {
     if (!activeSketch) return
@@ -243,12 +431,16 @@ export default function App() {
       return
     }
 
-    const chosenType = suggestion.kind === 'attach' ? 'Badge' : suggestion.type
+    const chosenType = suggestion.kind === 'attach' ? 'Badge' : suggestion.componentType
     setDrawnChoices(prev => ({
       ...prev,
       [activeSketch.id]: {
         kind: 'component',
-        type: chosenType,
+        componentType: chosenType,
+        widthScale: suggestion.widthScale,
+        heightScale: suggestion.heightScale,
+        stylePatch: suggestion.stylePatch,
+        propsPatch: suggestion.propsPatch,
         attachTo: suggestion.kind === 'attach' ? overlapTarget?.id ?? null : null,
       },
     }))
@@ -358,15 +550,74 @@ export default function App() {
           onTemplateSelect={handleTemplateSelect}
           onStyleSelect={handleStyleSelect}
           appliedPrompt={appliedPrompt}
+          onScreenshotUpload={handleScreenshotUpload}
+          onScreenshotAnalyze={handleScreenshotAnalyze}
+          onScreenshotApply={handleScreenshotApply}
+          onScreenshotDiscard={handleScreenshotDiscard}
+          screenshotState={screenshotState}
         />
 
         {/* CENTER — Drawing Canvas */}
         <section className="canvas-area">
+          {screenshotState?.dataUrl && (
+            <aside className="screenshot-workbench">
+              <div className="ss-head">
+                <p className="ss-title">Polished UI Rebuild</p>
+                <span className="ss-step">{screenshotState.status === 'enhanced' ? 'Enhanced screen ready' : 'Reference loaded'}</span>
+              </div>
+
+              <div className="ss-preview-stack">
+                <div className="ss-pane polished">
+                  <div className="ss-pane-headline">Enhanced UI Preview</div>
+                  <div className="ss-preview-frame polished">
+                    {enhancedPreviewDataUrl ? (
+                      <img src={enhancedPreviewDataUrl} alt="Enhanced polished UI preview" />
+                    ) : (
+                      <div className="ss-preview-empty">Analyze to generate a polished rebuilt screen</div>
+                    )}
+                  </div>
+                </div>
+
+                {screenshotState.showReference && (
+                  <div className="ss-pane reference">
+                    <div className="ss-pane-headline">Original Screenshot</div>
+                    <div className="ss-preview-frame reference">
+                      <img
+                        src={screenshotState.dataUrl}
+                        alt="Uploaded UI reference"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="ss-foot">
+                <label className="ss-keep-ref">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(screenshotState.keepReference)}
+                    onChange={event => setScreenshotState(prev => prev ? { ...prev, keepReference: event.target.checked } : prev)}
+                  />
+                  Keep screenshot reference after apply
+                </label>
+                <div className="ss-foot-actions">
+                  <button
+                    className="ss-action ghost"
+                    onClick={() => setScreenshotState(prev => prev ? { ...prev, showReference: !prev.showReference } : prev)}
+                  >
+                    {screenshotState.showReference ? 'Hide Original' : 'View Original'}
+                  </button>
+                  <button className="ss-action ghost" onClick={handleScreenshotAnalyze}>Analyze + Enhance</button>
+                  <button className="ss-action" onClick={handleScreenshotApply} disabled={!screenshotState.proposedComponents.length}>Use Enhanced UI</button>
+                </div>
+              </div>
+            </aside>
+          )}
+
           <CanvasDropZone onDropComponent={handleDropComponent}>
             <DrawingCanvas
               key={canvasKey}
               onObjectsChange={setSketchObjects}
-              componentOverlays={componentOverlays}
             />
           </CanvasDropZone>
 
@@ -380,20 +631,29 @@ export default function App() {
                 <button className="suggestion-close" onClick={dismissSuggestion} title="Ignore suggestions">×</button>
               </div>
 
-              <div className="suggestion-grid">
-                {activeSuggestions.map(suggestion => (
-                  <button
-                    key={suggestion.id}
-                    className={`suggestion-card ${suggestion.kind === 'keep' ? 'keep' : ''}`}
-                    onClick={() => applySuggestion(suggestion)}
-                  >
-                    <div className="suggestion-preview">
-                      <SuggestionVisual type={suggestion.kind === 'keep' ? 'keep' : suggestion.type} />
-                    </div>
-                    <span className="suggestion-label">{suggestion.label}</span>
-                  </button>
-                ))}
-              </div>
+              {groupedSuggestions.map(group => (
+                <section key={group.category} className="suggestion-group">
+                  <p className="suggestion-group-title">
+                    <span>{group.items[0].categoryIcon}</span>
+                    {group.items[0].categoryLabel}
+                  </p>
+                  <div className="suggestion-grid">
+                    {group.items.map(suggestion => (
+                      <button
+                        key={suggestion.id}
+                        className={`suggestion-card ${suggestion.kind === 'keep' ? 'keep' : ''}`}
+                        onClick={() => applySuggestion(suggestion)}
+                      >
+                        <div className="suggestion-preview">
+                          <SuggestionVisual suggestion={suggestion} />
+                        </div>
+                        <span className="suggestion-label">{suggestion.label}</span>
+                        <span className="suggestion-role">{suggestion.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </aside>
           )}
         </section>

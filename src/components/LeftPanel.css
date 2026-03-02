@@ -62,7 +62,7 @@
 
 .lp-modenav {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
   padding: 10px 10px 12px;
   border-bottom: 1px solid #ebf0f8;
@@ -532,4 +532,112 @@
 .lp-layout-arrow {
   color: #2563eb;
   font-size: 12px;
+}
+
+.lp-upload-input {
+  display: none;
+}
+
+.lp-upload-btn {
+  width: 100%;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+
+.lp-upload-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.lp-upload-state {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.lp-upload-name {
+  margin: 0;
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.lp-upload-meta {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.lp-upload-step {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.lp-upload-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-upload-action {
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 9px;
+  padding: 8px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lp-upload-action.ghost {
+  border: 1px solid #dbe4f0;
+  background: #ffffff;
+  color: #334155;
+}
+
+.lp-upload-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lp-upload-discard {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: #b91c1c;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lp-upload-empty {
+  margin-top: 10px;
+  border: 1px dashed #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.lp-upload-empty p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
 }

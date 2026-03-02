@@ -29,12 +29,7 @@ function normalizeFabricObject(object) {
   return base
 }
 
-/**
- * componentOverlays — array of { id, x, y, width, height, type, color }
- * rendered as semi-transparent labeled borders over the canvas so the user
- * can see how their sketch was interpreted without affecting drawing.
- */
-export function DrawingCanvas({ onObjectsChange, componentOverlays = [] }) {
+export function DrawingCanvas({ onObjectsChange }) {
   const canvasElRef = useRef(null)
   const fabricCanvasRef = useRef(null)
   const toolRef = useRef('draw')
@@ -251,32 +246,9 @@ export function DrawingCanvas({ onObjectsChange, componentOverlays = [] }) {
         </button>
       </div>
 
-      {/* Canvas + type-overlay wrapper */}
+      {/* Canvas wrapper */}
       <div className="canvas-container">
         <canvas ref={canvasElRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
-
-        {/* Semi-transparent type labels overlaid on drawn objects */}
-        {componentOverlays.length > 0 && (
-          <div className="canvas-type-overlay" aria-hidden="true">
-            {componentOverlays.map(ov => (
-              <div
-                key={ov.id}
-                className="canvas-overlay-box"
-                style={{
-                  left:   ov.x,
-                  top:    ov.y,
-                  width:  ov.width,
-                  height: ov.height,
-                  borderColor: ov.color,
-                }}
-              >
-                <span className="canvas-overlay-tag" style={{ background: ov.color }}>
-                  {ov.type}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

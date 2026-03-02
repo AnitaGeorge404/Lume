@@ -2,111 +2,357 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-// How "elongated" is a shape? Used to catch horizontal sliders
 function aspectRatio(w, h) {
   return w / Math.max(1, h)
-}
-
-function unique(values) {
-  return [...new Set(values)]
-}
-
-function candidateTypesForObject(object) {
-  const { shape, width = 1, height = 1 } = object
-  const ar = aspectRatio(width, height)
-  const area = width * height
-
-  if (shape === 'line') {
-    const dx = Math.abs((object.x2 ?? 0) - (object.x1 ?? 0))
-    const dy = Math.abs((object.y2 ?? 0) - (object.y1 ?? 0))
-    if (dx > dy * 2.5 && dx > 60) return ['Slider', 'Divider']
-    return ['Divider', 'Slider']
-  }
-
-  if (shape === 'circle') {
-    const r = object.radius ?? width / 2
-    if (r < 24) return ['Badge', 'Button']
-    if (r < 56) return ['Button', 'Badge', 'Card']
-    return ['Card', 'Button']
-  }
-
-  if (shape === 'rect') {
-    if (width > 240 && height > 130) return ['Card', 'Input']
-    if (ar > 4 && height < 44) return ['Slider', 'Divider', 'Input']
-    if (ar > 2 && height < 62) return ['Input', 'Button', 'Slider']
-    if (ar > 1.2 && height < 78) return ['Button', 'Input']
-    if (width > 150 && height > 90) return ['Card', 'Button']
-    return ['Button', 'Badge']
-  }
-
-  if (shape === 'path') {
-    if (ar > 4.5 && height < 40) return ['Slider', 'Divider', 'Input']
-    if (area > 26000 && ar > 0.5 && ar < 3.5) return ['Card', 'Button']
-    if (ar > 2.6 && height < 72 && width > 90) return ['Input', 'Button']
-    if (area < 7000) return ['Badge', 'Button', 'Divider']
-    return ['Button', 'Badge', 'Card']
-  }
-
-  return ['Button']
-}
-
-function isLowConfidence(object, candidates) {
-  const { shape, width = 1, height = 1 } = object
-  if (shape === 'path') {
-    const ar = aspectRatio(width, height)
-    return ar < 1.15 && ar > 0.85 && width < 90 && height < 90
-  }
-  return candidates.length <= 1
 }
 
 export function defaultsForType(type, index) {
   const i = index + 1
   if (type === 'Slider') return { label: `Range ${i}`, value: 50, min: 0, max: 100 }
-  if (type === 'Card')   return { title: `Card ${i}`, body: 'Your content here' }
-  if (type === 'Input')  return { placeholder: `Enter text...` }
-  if (type === 'Badge')  return { label: `${i}` }
+  if (type === 'Card') return { title: `Card ${i}`, body: 'Your content here' }
+  if (type === 'Input') return { placeholder: 'Enter text...' }
+  if (type === 'Badge') return { label: `${i}` }
   if (type === 'Divider') return { label: '' }
   return { label: `Button ${i}` }
 }
 
 const TYPE_STYLES = {
-  Button:  { fill: '#2563eb', text: '#ffffff', border: '#1d4ed8', radius: 12, shadow: true },
-  Card:    { fill: '#ffffff', text: '#0f172a', border: '#e2e8f0', radius: 16, shadow: true },
-  Slider:  { fill: '#e0f2fe', text: '#075985', border: '#0284c7', radius: 10, shadow: false },
-  Input:   { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12, shadow: false },
-  Badge:   { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
+  Button: { fill: '#2563eb', text: '#ffffff', border: '#1d4ed8', radius: 12, shadow: true },
+  Card: { fill: '#ffffff', text: '#0f172a', border: '#e2e8f0', radius: 16, shadow: true },
+  Slider: { fill: '#e0f2fe', text: '#075985', border: '#0284c7', radius: 10, shadow: false },
+  Input: { fill: '#f8fafc', text: '#334155', border: '#cbd5e1', radius: 12, shadow: false },
+  Badge: { fill: '#eff6ff', text: '#1e3a8a', border: '#93c5fd', radius: 999, shadow: false },
   Divider: { fill: 'transparent', text: '#94a3b8', border: '#e2e8f0', radius: 0, shadow: false },
 }
 
-export function getSketchSuggestions(object, { overlapsComponent = false } = {}) {
-  const base = candidateTypesForObject(object)
-  const lowConfidence = isLowConfidence(object, base)
-  const limited = lowConfidence ? base.slice(0, 2) : base.slice(0, 4)
+function inferShapeFamily(object) {
+  const { shape, width = 1, height = 1 } = object
+  const ar = aspectRatio(width, height)
 
-  const suggestions = unique(limited).map(type => ({
-    id: `type-${type}`,
-    kind: 'component',
-    type,
-    label: type,
-  }))
+  if (shape === 'line') return 'stroke'
+  if (shape === 'circle') return 'round'
+  if (shape === 'rect') return ar > 2.4 ? 'wide' : ar < 0.7 ? 'tall' : 'block'
+  if (shape === 'path') {
+    if (ar > 4.5) return 'wave'
+    if (ar > 2.2) return 'wide'
+    if (ar < 0.8) return 'tall'
+    return 'organic'
+  }
+  return 'organic'
+}
 
-  if (overlapsComponent) {
-    suggestions.push({
-      id: 'attach-decor',
-      kind: 'attach',
-      type: 'Badge',
-      label: 'Attach Decor',
-    })
+function inferSymbolSet(object) {
+  const family = inferShapeFamily(object)
+
+  if (family === 'stroke') {
+    return [
+      { name: 'Arrow', glyph: '➜' },
+      { name: 'Minus', glyph: '−' },
+      { name: 'Wave', glyph: '∿' },
+      { name: 'Checkmark', glyph: '✓' },
+    ]
   }
 
-  suggestions.push({
-    id: 'keep-drawing',
-    kind: 'keep',
-    type: null,
-    label: 'Keep Drawing',
+  if (family === 'round') {
+    return [
+      { name: 'Circle', glyph: '◉' },
+      { name: 'Heart', glyph: '♥' },
+      { name: 'Star', glyph: '★' },
+      { name: 'Play', glyph: '▶' },
+    ]
+  }
+
+  if (family === 'wide') {
+    return [
+      { name: 'Arrow', glyph: '➜' },
+      { name: 'Wave', glyph: '∿' },
+      { name: 'Plus', glyph: '+' },
+      { name: 'Highlight', glyph: '▭' },
+    ]
+  }
+
+  if (family === 'tall') {
+    return [
+      { name: 'Pause', glyph: '⏸' },
+      { name: 'Cross', glyph: '✕' },
+      { name: 'Status Mark', glyph: '◆' },
+      { name: 'Accent Pillar', glyph: '▮' },
+    ]
+  }
+
+  return [
+    { name: 'Heart', glyph: '♥' },
+    { name: 'Star', glyph: '★' },
+    { name: 'Scribble', glyph: '〰' },
+    { name: 'Blob', glyph: '⬭' },
+  ]
+}
+
+const UI_ROLE_VARIANTS = [
+  {
+    id: 'ui-button',
+    label: 'Button shape',
+    role: 'Primary action',
+    componentType: 'Button',
+    props: ({ glyph }) => ({ label: `${glyph} Action` }),
+  },
+  {
+    id: 'ui-icon-button',
+    label: 'Icon inside button',
+    role: 'Icon trigger',
+    componentType: 'Button',
+    props: ({ glyph }) => ({ label: `${glyph}` }),
+    widthScale: 0.7,
+  },
+  {
+    id: 'ui-slider-handle',
+    label: 'Slider handle',
+    role: 'Fine control',
+    componentType: 'Slider',
+    props: ({ name }) => ({ label: `${name} level`, value: 58, min: 0, max: 100 }),
+  },
+  {
+    id: 'ui-toggle-knob',
+    label: 'Toggle knob',
+    role: 'On/off state',
+    componentType: 'Badge',
+    props: ({ glyph }) => ({ label: `${glyph} ON` }),
+    style: { fill: '#dcfce7', text: '#166534', border: '#86efac' },
+  },
+  {
+    id: 'ui-rating',
+    label: 'Rating icon',
+    role: 'Feedback value',
+    componentType: 'Badge',
+    props: ({ glyph }) => ({ label: `${glyph} 4.8` }),
+    style: { fill: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  },
+  {
+    id: 'ui-progress',
+    label: 'Progress indicator',
+    role: 'Completion state',
+    componentType: 'Slider',
+    props: ({ name }) => ({ label: `${name} progress`, value: 72, min: 0, max: 100 }),
+  },
+]
+
+const DECORATIVE_VARIANTS = [
+  {
+    id: 'decor-bg',
+    label: 'Background decoration',
+    role: 'Backdrop accent',
+    componentType: 'Card',
+    props: ({ name }) => ({ title: `${name} texture`, body: 'Soft atmospheric decoration' }),
+    style: { fill: '#f8fafc', text: '#64748b', border: '#e2e8f0', shadow: false },
+  },
+  {
+    id: 'decor-sticker',
+    label: 'Overlay sticker',
+    role: 'Spotlight detail',
+    componentType: 'Badge',
+    props: ({ glyph }) => ({ label: `${glyph} NEW` }),
+    style: { fill: '#f0f9ff', text: '#0369a1', border: '#7dd3fc' },
+  },
+  {
+    id: 'decor-divider',
+    label: 'Decorative divider',
+    role: 'Section separator',
+    componentType: 'Divider',
+    props: () => ({ label: '' }),
+  },
+  {
+    id: 'decor-highlight',
+    label: 'Highlight sweep',
+    role: 'Text emphasis',
+    componentType: 'Input',
+    props: ({ name }) => ({ placeholder: `${name} highlight` }),
+    style: { fill: '#fff7ed', text: '#9a3412', border: '#fdba74' },
+  },
+]
+
+const MEANING_VARIANTS = [
+  {
+    id: 'meaning-love',
+    label: 'Love / like',
+    role: 'Emotion signal',
+    componentType: 'Badge',
+    glyph: '♥',
+    props: () => ({ label: '♥ Like' }),
+    style: { fill: '#ffe4e6', text: '#be123c', border: '#fda4af' },
+  },
+  {
+    id: 'meaning-favorite',
+    label: 'Favorite',
+    role: 'Preference marker',
+    componentType: 'Badge',
+    glyph: '★',
+    props: () => ({ label: '★ Favorite' }),
+    style: { fill: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  },
+  {
+    id: 'meaning-warning',
+    label: 'Warning',
+    role: 'Alert state',
+    componentType: 'Badge',
+    glyph: '⚠',
+    props: () => ({ label: '⚠ Warning' }),
+    style: { fill: '#fff7ed', text: '#c2410c', border: '#fdba74' },
+  },
+  {
+    id: 'meaning-success',
+    label: 'Success',
+    role: 'Positive state',
+    componentType: 'Badge',
+    glyph: '✓',
+    props: () => ({ label: '✓ Success' }),
+    style: { fill: '#ecfdf5', text: '#166534', border: '#86efac' },
+  },
+]
+
+function buildSuggestion({
+  id,
+  category,
+  categoryLabel,
+  categoryIcon,
+  label,
+  role,
+  componentType,
+  symbol,
+  kind = 'component',
+  propsPatch,
+  stylePatch,
+  widthScale,
+  heightScale,
+}) {
+  return {
+    id,
+    kind,
+    category,
+    categoryLabel,
+    categoryIcon,
+    label,
+    role,
+    componentType,
+    symbol,
+    propsPatch,
+    stylePatch,
+    widthScale,
+    heightScale,
+  }
+}
+
+export function getSketchSuggestions(object, { overlapsComponent = false } = {}) {
+  const symbols = inferSymbolSet(object)
+  const suggestions = []
+
+  symbols.forEach((symbolItem, index) => {
+    suggestions.push(buildSuggestion({
+      id: `shape-${index}-${symbolItem.name}`,
+      category: 'shape',
+      categoryLabel: 'Shape & Icon',
+      categoryIcon: '◇',
+      label: `${symbolItem.name} Icon`,
+      role: 'Visual symbol',
+      componentType: 'Badge',
+      symbol: symbolItem.glyph,
+      propsPatch: { label: symbolItem.glyph },
+      stylePatch: { fill: '#f8fafc', text: '#334155', border: '#cbd5e1' },
+      widthScale: 0.85,
+    }))
   })
 
-  return suggestions
+  UI_ROLE_VARIANTS.forEach((variant) => {
+    const symbolItem = symbols[0]
+    suggestions.push(buildSuggestion({
+      id: variant.id,
+      category: 'ui',
+      categoryLabel: 'UI Function',
+      categoryIcon: '▣',
+      label: variant.label,
+      role: variant.role,
+      componentType: variant.componentType,
+      symbol: symbolItem.glyph,
+      propsPatch: variant.props(symbolItem),
+      stylePatch: variant.style,
+      widthScale: variant.widthScale,
+      heightScale: variant.heightScale,
+    }))
+  })
+
+  DECORATIVE_VARIANTS.forEach((variant) => {
+    const symbolItem = symbols[1] ?? symbols[0]
+    suggestions.push(buildSuggestion({
+      id: variant.id,
+      category: 'decor',
+      categoryLabel: 'Decorative Use',
+      categoryIcon: '✧',
+      label: variant.label,
+      role: variant.role,
+      componentType: variant.componentType,
+      symbol: symbolItem.glyph,
+      propsPatch: variant.props(symbolItem),
+      stylePatch: variant.style,
+    }))
+  })
+
+  MEANING_VARIANTS.forEach((variant) => {
+    suggestions.push(buildSuggestion({
+      id: variant.id,
+      category: 'meaning',
+      categoryLabel: 'Metaphor & Meaning',
+      categoryIcon: '☼',
+      label: variant.label,
+      role: variant.role,
+      componentType: variant.componentType,
+      symbol: variant.glyph,
+      propsPatch: variant.props(),
+      stylePatch: variant.style,
+      widthScale: 1.05,
+    }))
+  })
+
+  if (overlapsComponent) {
+    suggestions.push(buildSuggestion({
+      id: 'decor-attach',
+      category: 'decor',
+      categoryLabel: 'Decorative Use',
+      categoryIcon: '✧',
+      label: 'Apply to this component',
+      role: 'Attached ornament',
+      componentType: 'Badge',
+      symbol: symbols[0].glyph,
+      kind: 'attach',
+      propsPatch: { label: symbols[0].glyph },
+      stylePatch: { fill: '#eef2ff', text: '#4338ca', border: '#a5b4fc' },
+      widthScale: 0.85,
+    }))
+  }
+
+  suggestions.push(buildSuggestion({
+    id: 'keep-drawing',
+    category: 'drawing',
+    categoryLabel: 'Pure Drawing',
+    categoryIcon: '✎',
+    label: 'Keep as drawing',
+    role: 'No conversion',
+    componentType: null,
+    kind: 'keep',
+    symbol: symbols[0].glyph,
+  }))
+
+  suggestions.push(buildSuggestion({
+    id: 'decorative-only',
+    category: 'drawing',
+    categoryLabel: 'Pure Drawing',
+    categoryIcon: '✎',
+    label: 'Decorative only',
+    role: 'Keep visual mark',
+    componentType: null,
+    kind: 'keep',
+    symbol: symbols[1]?.glyph ?? symbols[0].glyph,
+  }))
+
+  return suggestions.slice(0, 20)
 }
 
 export function createComponentFromSketch(object, type, index = 0) {
@@ -130,7 +376,8 @@ export function createComponentFromSketch(object, type, index = 0) {
 
 export function interpretSketchObjects(sketchObjects) {
   return sketchObjects.map((object, index) => {
-    const type = candidateTypesForObject(object)[0] ?? 'Button'
+    const suggestion = getSketchSuggestions(object)[0]
+    const type = suggestion?.componentType ?? 'Button'
     return createComponentFromSketch(object, type, index)
   })
 }
